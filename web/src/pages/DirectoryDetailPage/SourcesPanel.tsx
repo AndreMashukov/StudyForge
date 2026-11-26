@@ -87,7 +87,7 @@ export const SourcesPanel: React.FC<ISourcesPanelProps> = ({
           />
         ) : (
           <h2 className="flex min-h-10 items-center text-lg font-semibold">
-            Sources ({visibleCount})
+            Documents ({visibleCount})
           </h2>
         )}
       </div>

@@ -19,22 +19,25 @@ export interface IBulkArtifactSelection {
 }
 
 interface IUseBulkArtifactPanelOptions {
-  artifacts: Array<{ id: string; title: string }>;
-  artifactType: ArtifactSummaryType;
+  /** Artifacts of any types; each delete is sent with its own type. */
+  artifacts: Array<{ id: string; title: string; type: ArtifactSummaryType }>;
   entityLabel: string;
 }
 
 /**
- * Shared bulk-delete wiring for directory detail artifact panels.
+ * Bulk-delete wiring for the directory Artifacts panel (mixed types).
  */
 export function useBulkArtifactPanel({
   artifacts,
-  artifactType,
   entityLabel,
 }: IUseBulkArtifactPanelOptions): IBulkArtifactSelection {
   const visibleIds = useMemo(() => artifacts.map((a) => a.id), [artifacts]);
   const labelsById = useMemo(
     () => Object.fromEntries(artifacts.map((a) => [a.id, a.title])),
+    [artifacts],
+  );
+  const typesById = useMemo(
+    () => new Map(artifacts.map((a) => [a.id, a.type])),
     [artifacts],
   );
   const selection = useBulkSelection({ visibleIds });
@@ -68,10 +71,12 @@ export function useBulkArtifactPanel({
         isLoading={isLoading}
         error={flow.error}
         onConfirm={async () => {
-          const payload: IBulkDeleteArtifactItem[] = selection.selectedIds.map((id) => ({
-            id,
-            type: artifactType,
-          }));
+          const payload: IBulkDeleteArtifactItem[] = selection.selectedIds.flatMap(
+            (id) => {
+              const type = typesById.get(id);
+              return type ? [{ id, type }] : [];
+            },
+          );
           await flow.runBulkAction(
             () => bulkDeleteArtifacts({ artifacts: payload }).unwrap(),
             selection,

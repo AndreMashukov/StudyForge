@@ -2,32 +2,31 @@ import type { Directory } from '@shared-types';
 
 const DIRECTORY_PATH_PREFIX = '/directory/';
 
-export const DIRECTORY_TABS = [
-  'sources',
-  'quizzes',
-  'cards',
-  'slides',
-  'diagramQuizzes',
-  'sequenceQuizzes',
-  'matchQuizzes',
-  'rules',
-] as const;
+export const DIRECTORY_TABS = ['sources', 'artifacts', 'chats', 'rules'] as const;
 
 export type DirectoryTab = (typeof DIRECTORY_TABS)[number];
 
+/**
+ * `?tab=` values, including the per-type artifact tabs that existed before
+ * the Artifacts tab (old links and back buttons still land on Artifacts).
+ */
 const DIRECTORY_TAB_ALIASES: Record<string, DirectoryTab> = {
   sources: 'sources',
-  quizzes: 'quizzes',
-  cards: 'cards',
-  flashcards: 'cards',
-  slides: 'slides',
-  diagramQuizzes: 'diagramQuizzes',
-  diagrams: 'diagramQuizzes',
-  sequenceQuizzes: 'sequenceQuizzes',
-  sequence: 'sequenceQuizzes',
-  matchQuizzes: 'matchQuizzes',
-  match: 'matchQuizzes',
+  documents: 'sources',
+  artifacts: 'artifacts',
+  quizzes: 'artifacts',
+  cards: 'artifacts',
+  flashcards: 'artifacts',
+  slides: 'artifacts',
+  diagramQuizzes: 'artifacts',
+  diagrams: 'artifacts',
+  sequenceQuizzes: 'artifacts',
+  sequence: 'artifacts',
+  matchQuizzes: 'artifacts',
+  match: 'artifacts',
+  chats: 'chats',
   rules: 'rules',
+  prompts: 'rules',
 };
 
 /** Map a `?tab=` value (including short labels like `diagrams`) to a directory panel. */

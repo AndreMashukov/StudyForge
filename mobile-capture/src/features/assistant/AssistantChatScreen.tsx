@@ -57,9 +57,10 @@ export function AssistantChatScreen() {
       : directoryId
         ? { type: 'directory', directoryId, ...(label ? { label } : {}) }
         : undefined;
-    return directoryId
-      ? { scope: 'directory', directoryId, promptContext }
-      : { scope: 'workspace', promptContext };
+    // Chats are workspace-scoped everywhere: the folder (or the document's
+    // folder) is context, not a limit. A chat started from a folder gets it
+    // as its home folder on the server.
+    return { scope: 'workspace', promptContext };
   }, [directoryId, documentId, label]);
 
   const handleThreadCreated = useCallback(

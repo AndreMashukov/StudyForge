@@ -9,6 +9,8 @@ export const queryKeys = {
   artifact: (userId: string, kind: string, artifactId: string) =>
     ['artifact', userId, kind, artifactId] as const,
   agentThreads: (userId: string) => ['agentThreads', userId] as const,
+  directoryAgentThreads: (userId: string, directoryId: string) =>
+    ['agentThreads', userId, 'directory', directoryId] as const,
   agentThread: (userId: string, threadId: string) =>
     ['agentThread', userId, threadId] as const,
   agentTurn: (userId: string, threadId: string, turnId: string) =>

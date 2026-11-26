@@ -82,6 +82,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
   className,
   initialInput,
   pinnedThreadId,
+  initialThread,
 }) => {
   const { user } = useAuth();
   const userId = user?.uid;
@@ -109,6 +110,7 @@ export const AgentPanel: React.FC<IAgentPanel> = ({
     scope,
     directoryId,
     pinnedThreadId,
+    initialThread,
   });
   const { data: threadListData, isLoading: isThreadListLoading } =
     useListAgentThreadsQuery({});

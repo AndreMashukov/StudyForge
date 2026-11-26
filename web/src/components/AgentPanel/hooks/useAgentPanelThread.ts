@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentScope } from '@shared-types';
 import {
   readActiveThreadId,
@@ -19,15 +19,30 @@ export function useAgentPanelThread(input: {
   directoryId?: string;
   /** Shows only this thread; switching and remembering threads is off. */
   pinnedThreadId?: string;
+  /**
+   * Thread to show first instead of the remembered one (`threadId: null` =
+   * new chat). Applied once, then remembered like a normal selection.
+   */
+  initialThread?: { threadId: string | null };
 }): IUseAgentPanelThread {
-  const { userId, scope, directoryId, pinnedThreadId } = input;
+  const { userId, scope, directoryId, pinnedThreadId, initialThread } = input;
   const [threadId, setThreadId] = useState<string | undefined>();
+  const initialThreadRef = useRef(initialThread);
 
   useEffect(() => {
-    if (pinnedThreadId) {
+    if (pinnedThreadId || !userId) {
+      if (!pinnedThreadId) setThreadId(undefined);
       return;
     }
-    setThreadId(userId ? readActiveThreadId(userId, scope, directoryId) : undefined);
+    const initial = initialThreadRef.current;
+    if (initial) {
+      initialThreadRef.current = undefined;
+      const nextThreadId = initial.threadId ?? undefined;
+      setThreadId(nextThreadId);
+      writeActiveThreadId(userId, nextThreadId, scope, directoryId);
+      return;
+    }
+    setThreadId(readActiveThreadId(userId, scope, directoryId));
   }, [directoryId, pinnedThreadId, scope, userId]);
 
   const rememberThread = useCallback(

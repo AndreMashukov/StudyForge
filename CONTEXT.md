@@ -64,6 +64,10 @@ _Avoid_: hit (in product copy), match, referenced item
 Any AI-generated study output stored in a directory: quiz, flashcard set, slide deck, diagram quiz, sequence quiz, or match quiz.
 _Avoid_: content, output, generated doc
 
+**Directory item order**:
+How a directory's contents are listed, identical on web and mobile (`directory-item-order.ts` in shared types). **Documents**: the learner's drag order when any document has one (ordered documents first), then the rest newest first; new documents land at the top. **Artifacts**: one list of every type, newest first, like a NotebookLM Studio panel. Artifacts have no manual order; a stored `sortOrder` on an artifact is ignored.
+_Avoid_: per-type artifact order, A–Z (for documents or artifacts)
+
 **Quiz**:
 Multiple-choice questions derived from one or more documents. Generic quiz type — not a diagram quiz or sequence quiz.
 _Avoid_: test, assessment (unless user-facing copy)
@@ -206,8 +210,12 @@ Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs 
 _Avoid_: global agent (alone), workspace chat, ADK workspace agent
 
 **Directory-scoped agent**:
-Same plan-execute LangGraph as the workspace agent, but tools are limited to one directory tree and its descendants (`scope: directory`). Opened from inside a directory on mobile.
+Same plan-execute LangGraph as the workspace agent, but tools are limited to one directory tree and its descendants (`scope: directory`). No client starts new directory-scoped chats any more: mobile folder chats are workspace-scoped with the folder as context. Older mobile threads keep `scope: directory`.
 _Avoid_: folder agent, scoped workspace agent, directory chat
+
+**Home folder (chat)**:
+The directory a chat was started in: its first message's context was that directory (web folder page, mobile folder composer, mobile Assistant home with a folder picked). Stored as `homeDirectoryId` on the thread, set once at creation and never changed; document chats have none. Unrelated to scope: a chat with a home folder is still a **workspace agent** chat. A directory's Chats tab lists the threads whose home folder it is, newest message first. Threads from before the field were backfilled from `directoryId` on directory-scoped threads.
+_Avoid_: chat directory, scoped chat (when meaning home folder)
 
 **Agent turn**:
 One user message and the agent's work to answer it (one run of the plan-execute graph). It runs in the `runAgentTurnTask` Cloud Task, not in the client's request, so closing the panel, leaving the screen or backgrounding the app never stops it. Clients follow it through its **agent turn doc** and re-attach when they come back. Durable chat history stays on the StudyForge agent thread.
@@ -318,6 +326,7 @@ _Avoid_: migration order, pre/post hook
 - A **Capture** creates a **Document** in the current **Directory** or the **Default capture directory**
 - A **Narratable check** decides whether a **Document** is a **Narratable document**; a narratable document has at most one **Narration**, made of **Narration parts** in document order
 - An **agent turn** may return **Referenced items** alongside its reply
+- An agent thread has at most one **Home folder**; a **Directory** lists the chats whose home folder it is
 - Every **Directory**, **Document** and **Artifact** has one **Search record**; **Library search** returns **Search results** drawn from them
 - An agent thread has many **agent turns** and at most one **active turn**; every turn that ends writes exactly one assistant message
 - **Platform agent knowledge** is retrieved as **Platform knowledge chunks** into the workspace-agent planner prompt; **User knowledge** is searched separately with `search_knowledge`
@@ -330,7 +339,7 @@ _Avoid_: migration order, pre/post hook
 - **Record vs job** — the user-visible Firestore entity (document/artifact) vs the `GenerationJob` tracking async work; don't conflate their status fields.
 - **"Due"** — StudyForge has no spaced-repetition schedule, so nothing is "due". Say "missed" for cards and questions drawn from **statistics failure groups**.
 - **"Assistant"** — in mobile copy, means the **workspace agent** or **directory-scoped agent**.
-- **"Chat"** — means a conversation with the **workspace agent** or **directory-scoped agent**. StudyForge no longer has directory chat; don't name a third conversational surface "chat".
+- **"Chat"** — means a conversation with the **workspace agent** or **directory-scoped agent**. StudyForge no longer has directory chat; don't name a third conversational surface "chat". A folder's **Chats** tab lists chats by **Home folder**, not by scope.
 - **"Explanation"** — quiz, diagram quiz, sequence quiz and match quiz questions have none; the learner sees only whether the answer was right. A flashcard's explanation is part of the card's back, not answer feedback.
 - **"Prompt"** — in learner-facing copy, means a **rule**. In code and the domain model it also appears in **AI Prompt** documents (`documentFromPrompt`, the Create Document source) and in LLM prompts; those are not rules. **Additional instructions** are not rules either.
 - **"Search"** — alone, means **library search**. The agent looking through **User knowledge** is knowledge search, and what it surfaces are **Referenced items**, not **search results**.

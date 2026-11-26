@@ -20,6 +20,11 @@ export interface IAgentPanel {
    * course): no history menu, no new chat, nothing remembered.
    */
   pinnedThreadId?: string;
+  /**
+   * Opens on this thread instead of the remembered one (`threadId: null` =
+   * new chat). Read once when the panel mounts.
+   */
+  initialThread?: { threadId: string | null };
   className?: string;
 }
 

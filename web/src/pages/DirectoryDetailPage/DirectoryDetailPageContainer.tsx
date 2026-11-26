@@ -13,6 +13,7 @@ import {
   useGetDirectoryAncestorsQuery,
 } from '../../store/api/Directory/DirectoryApi';
 import { useGetDirectoryRulesQuery } from '../../store/api/Rules/rulesApi';
+import { useListDirectoryAgentThreadsQuery } from '../../store/api/AgentThread';
 import { Page } from '../../components/Page';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -35,7 +36,7 @@ import {
   Trash2,
   Shield,
 } from 'lucide-react';
-import { DocumentEnhanced, Directory, ArtifactSummary, hasManualFolderOrder } from '@shared-types';
+import { DocumentEnhanced, Directory, hasManualFolderOrder } from '@shared-types';
 import { ICON_MAP } from '../DocumentsPage/DocumentsPageContainer/folderConstants';
 import { CreateDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/CreateDirectoryDialog';
 import { EditDirectoryDialog } from '../DocumentsPage/DocumentsPageContainer/EditDirectoryDialog';
@@ -49,13 +50,9 @@ import { MoveDocumentDialog } from './MoveDocumentDialog';
 import { DeleteArtifactDialog, ArtifactToDelete } from './DeleteArtifactDialog';
 import { DirectoryIconSidebar, PanelType } from './DirectoryIconSidebar';
 import { SourcesPanel } from './SourcesPanel';
-import { QuizzesPanel } from './QuizzesPanel';
-import { FlashcardsPanel } from './FlashcardsPanel';
-import { SlidesPanel } from './SlidesPanel';
-import { DiagramQuizzesPanel } from './DiagramQuizzesPanel';
+import { ArtifactsPanel } from './ArtifactsPanel';
+import { ChatsPanel } from './ChatsPanel';
 import { Spinner } from '../../components/ui/Spinner';
-import { SequenceQuizzesPanel } from './SequenceQuizzesPanel';
-import { MatchQuizzesPanel } from './MatchQuizzesPanel';
 import { DirectoryRulesPageProvider } from '../DirectoryRulesPage/context/DirectoryRulesPageProvider';
 import { DirectoryRulesPageContainer } from '../DirectoryRulesPage/DirectoryRulesPageContainer';
 import { TooltipProvider } from '../../components/ui/Tooltip';
@@ -182,6 +179,15 @@ export const DirectoryDetailPageContainer = () => {
       { skip: !directoryId },
     );
 
+  const {
+    data: directoryThreadsData,
+    isLoading: isDirectoryThreadsLoading,
+    isError: isDirectoryThreadsError,
+  } = useListDirectoryAgentThreadsQuery(
+    { directoryId: directoryId ?? '' },
+    { skip: !directoryId },
+  );
+
   const titleDirectory = contents?.directory;
 
   useEffect(() => {
@@ -289,25 +295,21 @@ export const DirectoryDetailPageContainer = () => {
   const subdirectories = contents.subdirectories || [];
   const documents = contents.documents || [];
   const artifactSummaries = contents.artifactSummaries || [];
-  const quizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'quiz' } => a.type === 'quiz');
-  const flashcardSets = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'flashcard' } => a.type === 'flashcard');
-  const slideDecks = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'slideDeck' } => a.type === 'slideDeck');
-  const diagramQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'diagramQuiz' } => a.type === 'diagramQuiz');
-  const sequenceQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'sequenceQuiz' } => a.type === 'sequenceQuiz');
-  const matchQuizzes = artifactSummaries.filter((a): a is ArtifactSummary & { type: 'matchQuiz' } => a.type === 'matchQuiz');
   const directoryRules = directoryRulesData?.rules ?? [];
   const ruleNamesMap = new Map<string, string>(
     directoryRules.map((rule) => [rule.id, rule.name]),
   );
   const ancestors = ancestorsData?.ancestors || [];
 
-  // Detect truncation: server caps at ARTIFACT_PAGE_LIMIT per type
-  const quizzesTruncated = quizzes.length >= ARTIFACT_PAGE_LIMIT;
-  const flashcardsTruncated = flashcardSets.length >= ARTIFACT_PAGE_LIMIT;
-  const slidesTruncated = slideDecks.length >= ARTIFACT_PAGE_LIMIT;
-  const diagramQuizzesTruncated = diagramQuizzes.length >= ARTIFACT_PAGE_LIMIT;
-  const sequenceQuizzesTruncated = sequenceQuizzes.length >= ARTIFACT_PAGE_LIMIT;
-  const matchQuizzesTruncated = matchQuizzes.length >= ARTIFACT_PAGE_LIMIT;
+  // The load is capped at ARTIFACT_PAGE_LIMIT per type.
+  const artifactCountsByType = new Map<string, number>();
+  for (const artifact of artifactSummaries) {
+    artifactCountsByType.set(artifact.type, (artifactCountsByType.get(artifact.type) ?? 0) + 1);
+  }
+  const artifactsTruncated = [...artifactCountsByType.values()].some(
+    (count) => count >= ARTIFACT_PAGE_LIMIT,
+  );
+  const directoryThreads = directoryThreadsData?.threads ?? [];
 
   return (
     <TooltipProvider>
@@ -365,7 +367,7 @@ export const DirectoryDetailPageContainer = () => {
                 New subfolder
               </Button>
               <Button size="sm" className="gap-2" onClick={handleOpenCreateDocumentModal}>
-                Add source
+                Add document
               </Button>
             </div>
           </div>
@@ -481,7 +483,15 @@ export const DirectoryDetailPageContainer = () => {
         {/* Main layout: Icon Sidebar + Content Panel */}
         <div className="flex gap-4">
           <div>
-            <DirectoryIconSidebar activePanel={activePanel} onPanelChange={handlePanelChange} />
+            <DirectoryIconSidebar
+              activePanel={activePanel}
+              onPanelChange={handlePanelChange}
+              counts={{
+                sources: documents.length,
+                artifacts: artifactSummaries.length,
+                chats: directoryThreads.length,
+              }}
+            />
           </div>
           <div className="min-w-0 flex-1">
             {activePanel === 'sources' && (
@@ -494,64 +504,22 @@ export const DirectoryDetailPageContainer = () => {
                 onCreateArtifactFromDocument={handleOpenCreateArtifactFromDocument}
               />
             )}
-            {activePanel === 'quizzes' && (
-              <QuizzesPanel
-                quizzes={quizzes}
+            {activePanel === 'artifacts' && (
+              <ArtifactsPanel
+                artifacts={artifactSummaries}
                 directoryId={directoryId}
-                mayBeTruncated={quizzesTruncated}
+                mayBeTruncated={artifactsTruncated}
+                perTypeLimit={ARTIFACT_PAGE_LIMIT}
                 onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
                 ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('quizzes')}
+                onCreate={(artifactType) => handleOpenCreateArtifact(artifactType)}
               />
             )}
-            {activePanel === 'cards' && (
-              <FlashcardsPanel
-                flashcardSets={flashcardSets}
-                directoryId={directoryId}
-                mayBeTruncated={flashcardsTruncated}
-                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
-                ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('cards')}
-              />
-            )}
-            {activePanel === 'slides' && (
-              <SlidesPanel
-                slideDecks={slideDecks}
-                directoryId={directoryId}
-                mayBeTruncated={slidesTruncated}
-                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
-                ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('slides')}
-              />
-            )}
-            {activePanel === 'diagramQuizzes' && (
-              <DiagramQuizzesPanel
-                diagramQuizzes={diagramQuizzes}
-                directoryId={directoryId}
-                mayBeTruncated={diagramQuizzesTruncated}
-                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
-                ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('diagramQuizzes')}
-              />
-            )}
-            {activePanel === 'sequenceQuizzes' && (
-              <SequenceQuizzesPanel
-                sequenceQuizzes={sequenceQuizzes}
-                directoryId={directoryId}
-                mayBeTruncated={sequenceQuizzesTruncated}
-                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
-                ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('sequenceQuizzes')}
-              />
-            )}
-            {activePanel === 'matchQuizzes' && (
-              <MatchQuizzesPanel
-                matchQuizzes={matchQuizzes}
-                directoryId={directoryId}
-                mayBeTruncated={matchQuizzesTruncated}
-                onDeleteArtifact={(artifact) => setDeleteArtifactDialog({ artifact })}
-                ruleNamesMap={ruleNamesMap}
-                onCreate={() => handleOpenCreateArtifact('matchQuizzes')}
+            {activePanel === 'chats' && (
+              <ChatsPanel
+                threads={directoryThreads}
+                isLoading={isDirectoryThreadsLoading}
+                hasError={isDirectoryThreadsError}
               />
             )}
             {activePanel === 'rules' && (

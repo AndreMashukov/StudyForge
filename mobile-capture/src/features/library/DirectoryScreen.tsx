@@ -14,22 +14,27 @@ import {
 } from '@studyforge/mobile-ui';
 import { useAuthUser } from '../auth/hooks/useAuthUser';
 import { useDirectoryTreeQuery } from '../directories/api/directoryQueries';
-import { useAgentThreads } from '../assistant/useAgentChat';
+import { useDirectoryAgentThreads } from '../assistant/useAgentChat';
 import { startChat } from '../assistant/chatNavigation';
 import { BackOrMenuButton } from '../shell/HeaderButtons';
 import { useShellStore } from '../shell/shellStore';
 import { Composer, ItemRow, OfflineBanner, SectionLabel } from '../shell/ui';
 import { getCallableErrorMessage } from '../../lib/api/studyforgeApi';
-import { flattenTree, getBreadcrumbs, sortItems } from './libraryUtils';
+import { flattenTree, getBreadcrumbs } from './libraryUtils';
 import { useDirectoryItems, useLiveDirectoryTree } from './libraryData';
 import { LibraryItemRow } from './libraryRows';
-import { compareFolderOrder } from '@shared-types';
+import {
+  compareFolderOrder,
+  sortArtifactsForDisplay,
+  sortDocumentsForDisplay,
+} from '@shared-types';
 
 type Segment = 'documents' | 'artifacts' | 'chats';
 
 /**
  * Drill-down directory page (spec recommendation 3): breadcrumb, subdirectories,
- * then documents / artifacts / chats on one page. The composer asks the
+ * then documents / artifacts / chats on one page. Chats are the threads
+ * started in this folder (home folder). The composer asks the
  * directory-scoped agent; + captures into this directory.
  */
 export function DirectoryScreen() {
@@ -41,7 +46,7 @@ export function DirectoryScreen() {
   const treeQuery = useDirectoryTreeQuery();
   useLiveDirectoryTree(user?.uid, focused);
   const itemsQuery = useDirectoryItems(user?.uid, directoryId, focused);
-  const threadsQuery = useAgentThreads(user?.uid, 50);
+  const threadsQuery = useDirectoryAgentThreads(user?.uid, directoryId, focused);
   const openCapture = useShellStore((state) => state.openCapture);
   const openNewDirectory = useShellStore((state) => state.openNewDirectory);
   const [segment, setSegment] = useState<Segment | null>(null);
@@ -65,18 +70,28 @@ export function DirectoryScreen() {
   );
   const items = useMemo(
     () =>
-      sortItems(
-        (itemsQuery.data ?? []).filter(
-          (item) => item.itemType !== 'subdirectory',
-        ),
+      (itemsQuery.data ?? []).filter(
+        (item) => item.itemType !== 'subdirectory',
       ),
     [itemsQuery.data],
   );
-  const documents = items.filter((item) => item.itemType === 'document');
-  const artifacts = items.filter((item) => item.itemType !== 'document');
-  const chats = (threadsQuery.data ?? []).filter(
-    (thread) => thread.directoryId === directoryId,
+  // Same order as the web folder page: documents by drag order, else newest
+  // first; artifacts of every type mixed, newest first.
+  const documents = useMemo(
+    () =>
+      sortDocumentsForDisplay(
+        items.filter((item) => item.itemType === 'document'),
+      ),
+    [items],
   );
+  const artifacts = useMemo(
+    () =>
+      sortArtifactsForDisplay(
+        items.filter((item) => item.itemType !== 'document'),
+      ),
+    [items],
+  );
+  const chats = threadsQuery.data ?? [];
   const active: Segment =
     segment ??
     (documents.length || !artifacts.length ? 'documents' : 'artifacts');

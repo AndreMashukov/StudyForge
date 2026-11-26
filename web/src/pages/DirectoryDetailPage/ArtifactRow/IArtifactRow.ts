@@ -4,6 +4,8 @@ import type { GenerationStatus } from '../../../types/generationStatus';
 export interface IArtifactRow {
   icon: LucideIcon;
   title: string;
+  /** Artifact kind shown before the date, e.g. "Quiz" (mixed lists). */
+  typeLabel?: string;
   createdAt: Date | { toDate(): Date } | { _seconds: number; _nanoseconds: number } | string | number | null | undefined;
   linkTo: string;
   onDelete: () => void;

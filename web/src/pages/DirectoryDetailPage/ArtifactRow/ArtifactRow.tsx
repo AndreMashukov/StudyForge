@@ -40,6 +40,7 @@ const ColorRail: React.FC<{
 export const ArtifactRow: React.FC<IArtifactRow> = ({
   icon: Icon,
   title,
+  typeLabel,
   createdAt,
   linkTo,
   onDelete,
@@ -171,6 +172,7 @@ export const ArtifactRow: React.FC<IArtifactRow> = ({
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">{title}</div>
           <div className="text-xs text-muted-foreground">
+            {typeLabel ? `${typeLabel} · ` : ''}
             {formatDate(createdAt)}
           </div>
         </div>
