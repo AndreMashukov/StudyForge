@@ -70,12 +70,15 @@ export function parseStringArray(value: unknown, fieldName = 'tags'): string[] {
   return result;
 }
 
-export function parseOptionalBoolean(value: unknown): boolean | undefined {
+export function parseOptionalBoolean(
+  value: unknown,
+  fieldName = 'value',
+): boolean | undefined {
   if (value === undefined) {
     return undefined;
   }
   if (typeof value !== 'boolean') {
-    throw new Error('isDefault must be a boolean');
+    throw new Error(`${fieldName} must be a boolean`);
   }
   return value;
 }

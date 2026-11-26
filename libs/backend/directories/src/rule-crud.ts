@@ -43,8 +43,8 @@ export async function createRule(
     color: request.color,
     tags: request.tags || [],
     applicableTo,
-    isDefault: request.isDefault || false,
     directoryIds: [], // Empty initially, attached separately
+    alwaysApplyDirectoryIds: [], // Always apply is per folder (ADR 015)
     ...(request.sourceBlueprintId
       ? {
           sourceBlueprintId: request.sourceBlueprintId,
@@ -183,7 +183,6 @@ export async function updateRule(
   if (request.color !== undefined) updateData.color = request.color;
   if (request.tags !== undefined) updateData.tags = request.tags;
   if (applicableTo !== undefined) updateData.applicableTo = applicableTo;
-  if (request.isDefault !== undefined) updateData.isDefault = request.isDefault;
 
   await ruleRef.update(updateData);
 
@@ -256,7 +255,8 @@ export async function deleteRule(
 export async function attachRuleToDirectory(
   userId: string,
   ruleId: string,
-  directoryId: string
+  directoryId: string,
+  options: { alwaysApply?: boolean } = {}
 ): Promise<void> {
   const ruleRef = FirestorePaths.rule(userId, ruleId);
   const directoryRef = FirestorePaths.directory(userId, directoryId);
@@ -279,6 +279,10 @@ export async function attachRuleToDirectory(
   // Add directory ID to rule's directoryIds array (if not already present)
   batch.update(ruleRef, {
     directoryIds: FieldValue.arrayUnion(directoryId),
+    // Optionally also always apply in this folder (ADR 015).
+    ...(options.alwaysApply
+      ? { alwaysApplyDirectoryIds: FieldValue.arrayUnion(directoryId) }
+      : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
 

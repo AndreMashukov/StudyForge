@@ -84,7 +84,6 @@ describe('rule-blueprints', () => {
       color: RuleColor.ORANGE,
       tags: ['quiz'],
       applicableTo: [RuleApplicability.QUIZ],
-      isDefault: false,
       directoryIds: [],
       sourceBlueprintId: publishedBlueprint.id,
       sourceBlueprintVersion: 2,
@@ -106,7 +105,6 @@ describe('rule-blueprints', () => {
       color: RuleColor.ORANGE,
       tags: ['quiz'],
       applicableTo: [RuleApplicability.QUIZ],
-      isDefault: false,
       sourceBlueprintId: publishedBlueprint.id,
       sourceBlueprintVersion: 2,
       sourceBlueprintName: 'Quiz Generic',
@@ -132,7 +130,6 @@ describe('rule-blueprints', () => {
       color: RuleColor.ORANGE,
       tags: ['quiz'],
       applicableTo: [RuleApplicability.QUIZ],
-      isDefault: false,
       directoryIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -149,7 +146,6 @@ describe('rule-blueprints', () => {
           color: RuleColor.ORANGE,
           tags: ['quiz'],
           applicableTo: [RuleApplicability.QUIZ],
-          isDefault: false,
           directoryIds: ['dir-1'],
           createdAt: { toDate: () => new Date() },
           updatedAt: { toDate: () => new Date() },
@@ -162,12 +158,14 @@ describe('rule-blueprints', () => {
       name: 'My Quiz Rule',
       content: 'Custom quiz content',
       directoryId: 'dir-1',
+      alwaysApply: true,
     });
 
     expect(attachRuleToDirectory).toHaveBeenCalledWith(
       'user-1',
       'rule-1',
       'dir-1',
+      { alwaysApply: true },
     );
   });
 });

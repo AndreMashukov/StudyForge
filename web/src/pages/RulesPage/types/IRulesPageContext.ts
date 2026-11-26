@@ -26,5 +26,4 @@ export interface RulesPageFilters {
   tags: string[];
   applicableTo: RuleApplicability[];
   colors: string[];
-  showDefaultOnly: boolean;
 }

@@ -200,13 +200,13 @@ How explicitly selected rules combine with inherited directory rules: `inherit`,
 _Avoid_: rule merge mode, inheritance setting
 
 **Always apply**:
-Rule flag that auto-selects the rule for applicable operations (stored as `isDefault`). Selecting a rule during an operation turns the flag on; deselecting turns it off. Next time that operation opens, always-apply rules are preselected.
-_Avoid_: default rule, auto-select rule (prefer **always apply** in product copy)
+Per-folder setting that makes a rule start ticked in the prompt pickers opened in that folder (stored on the rule as `alwaysApplyDirectoryIds`). It covers exactly the folders listed: subfolders that inherit the rule are not covered and keep their own setting. Ticking a rule in a picker turns it on for that picker's folder; unticking turns it off there. The folder's Prompts tab toggles it too, for attached and inherited rules. It only decides preselection; generation never reads it. Folders listed where the rule no longer shows up are ignored. Replaced the global `isDefault` flag; see [ADR 015](docs/adr/015-always-apply-per-folder.md).
+_Avoid_: default rule, auto-select rule, global always apply (prefer **always apply** in product copy)
 
 ## Learning & chat
 
 **Workspace agent**:
-Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt** and applies **always apply** rules for the target directory. Retrieves **Platform agent knowledge** into the planner prompt; searches **User knowledge** with `search_knowledge`.
+Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt**, which applies every rule the target directory inherits (generation does not read **always apply**). Retrieves **Platform agent knowledge** into the planner prompt; searches **User knowledge** with `search_knowledge`.
 _Avoid_: global agent (alone), workspace chat, ADK workspace agent
 
 **Directory-scoped agent**:
@@ -316,6 +316,7 @@ _Avoid_: migration order, pre/post hook
 - A **Directory** contains **Documents** and **Artifacts**
 - **Artifacts** are generated from one or more **Documents** in the same directory
 - **Rules** attach to **Directories** and inherit down the tree
+- A **Rule** may **always apply** in specific **Directories**; unlike attachment, that does not inherit down the tree
 - A **Generation job** drives async completion of every **Pending record** created by AI generation
 - A **LLM setup** has one **generation route** per **generation kind**
 - A **generation route** points to one **Provider connection** and declares a required **LLM modality**

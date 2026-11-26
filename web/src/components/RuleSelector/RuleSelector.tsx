@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
+import { ruleAlwaysAppliesIn } from "@shared-types";
 import { ClipboardList, Inbox } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { Checkbox } from "../ui/Checkbox";
 import {
   useGetApplicableRulesQuery,
-  useUpdateRuleMutation,
+  useSetRuleAlwaysApplyMutation,
 } from "../../store/api/Rules/rulesApi";
 import { RuleListSkeleton } from "../LoadingSkeletons";
 import { VirtualizedList } from "../VirtualizedList";
@@ -25,7 +26,7 @@ export const RuleSelector = ({
     directoryId,
     operation,
   });
-  const [updateRule, { isLoading: isUpdating }] = useUpdateRuleMutation();
+  const [setRuleAlwaysApply, { isLoading: isUpdating }] = useSetRuleAlwaysApplyMutation();
   const initializedKeyRef = useRef<string | null>(null);
   const selectionKey = `${directoryId}:${operation}`;
 
@@ -68,28 +69,28 @@ export const RuleSelector = ({
       return;
     }
 
+    // Ticking a prompt here makes it always apply in this folder only, and
+    // unticking stops it (ADR 015). Other folders keep their own setting.
     const rule = rules.find((r) => r.id === ruleId);
     const previousSelection = selectedRuleIds;
+    const selecting = !selectedRuleIds.includes(ruleId);
 
-    if (selectedRuleIds.includes(ruleId)) {
-      onSelectionChange(selectedRuleIds.filter((id) => id !== ruleId));
-      if (rule?.isDefault) {
-        try {
-          await updateRule({ ruleId, isDefault: false }).unwrap();
-        } catch {
-          onSelectionChange(previousSelection);
-        }
-      }
+    onSelectionChange(
+      selecting
+        ? [...selectedRuleIds, ruleId]
+        : selectedRuleIds.filter((id) => id !== ruleId),
+    );
+    if (!rule || ruleAlwaysAppliesIn(rule, directoryId) === selecting) {
       return;
     }
-
-    onSelectionChange([...selectedRuleIds, ruleId]);
-    if (rule && !rule.isDefault) {
-      try {
-        await updateRule({ ruleId, isDefault: true }).unwrap();
-      } catch {
-        onSelectionChange(previousSelection);
-      }
+    try {
+      await setRuleAlwaysApply({
+        ruleId,
+        directoryId,
+        alwaysApply: selecting,
+      }).unwrap();
+    } catch {
+      onSelectionChange(previousSelection);
     }
   };
 
@@ -128,7 +129,7 @@ export const RuleSelector = ({
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{rule.name}</span>
-                    {rule.isDefault && (
+                    {ruleAlwaysAppliesIn(rule, directoryId) && (
                       <Badge variant="outline" className="text-xs">
                         Always apply
                       </Badge>

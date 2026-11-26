@@ -5,6 +5,7 @@ import type {
   Rule,
   RuleApplicability,
 } from '@shared-types';
+import { alwaysApplyRuleIdsIn } from '@shared-types';
 import { fetchDirectoryFromFirestore } from './directoryFirestore';
 import { fetchDirectoryTreeFromFirestore } from './directoryTreeIndex';
 import { fetchRulesFromFirestore } from './rulesFirestore';
@@ -178,6 +179,6 @@ export async function resolveApplicableRulesClient(
 
   return {
     rules,
-    defaultRuleIds: rules.filter((rule) => rule.isDefault).map((rule) => rule.id),
+    defaultRuleIds: alwaysApplyRuleIdsIn(rules, directoryId),
   };
 }

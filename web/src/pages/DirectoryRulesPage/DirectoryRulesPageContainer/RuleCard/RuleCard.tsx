@@ -1,4 +1,4 @@
-import { Tag, X } from 'lucide-react';
+import { Pin, Tag, X } from 'lucide-react';
 import { Rule, RuleApplicability, RuleColor } from '@shared-types';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { Button } from '../../../../components/ui/Button';
@@ -13,6 +13,10 @@ export interface IDirectoryRuleCard {
   showRemoveButton?: boolean;
   selected?: boolean;
   onSelectChange?: (selected: boolean) => void;
+  /** Always apply in the folder being viewed (ADR 015). */
+  alwaysApply?: boolean;
+  onToggleAlwaysApply?: () => void;
+  alwaysApplyDisabled?: boolean;
 }
 
 const ruleAccentColors: Record<RuleColor, string> = {
@@ -52,6 +56,9 @@ export const RuleCard = ({
   showRemoveButton = false,
   selected = false,
   onSelectChange,
+  alwaysApply = false,
+  onToggleAlwaysApply,
+  alwaysApplyDisabled = false,
 }: IDirectoryRuleCard) => {
   const { currentTheme } = useTheme();
   const colors = currentTheme.colors;
@@ -148,6 +155,27 @@ export const RuleCard = ({
 
         {/* Actions */}
         <div className="flex gap-2 ml-4">
+          {onToggleAlwaysApply && (
+            <Button
+              variant={alwaysApply ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={onToggleAlwaysApply}
+              disabled={alwaysApplyDisabled}
+              aria-pressed={alwaysApply}
+              title={
+                alwaysApply
+                  ? 'Starts ticked when you create in this folder. Click to stop.'
+                  : 'Tick this prompt by default when you create in this folder.'
+              }
+              className="gap-1.5"
+            >
+              <Pin
+                className={cn('h-3.5 w-3.5', alwaysApply && 'fill-current')}
+                aria-hidden="true"
+              />
+              {alwaysApply ? 'Always applies here' : 'Always apply here'}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

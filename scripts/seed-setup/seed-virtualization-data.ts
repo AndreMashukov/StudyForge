@@ -194,8 +194,8 @@ async function main() {
         color: ['blue', 'green', 'purple', 'orange', 'red'][(i - 1) % 5],
         tags: ['bulk-seed', i % 2 === 0 ? 'quiz' : 'prompt'],
         applicableTo: ['prompt', 'quiz', 'flashcard', 'slide_deck'],
-        isDefault: false,
         directoryIds: i <= 5 ? [DIR_ID] : [],
+        alwaysApplyDirectoryIds: [],
         createdAt: now,
         updatedAt: now,
       });

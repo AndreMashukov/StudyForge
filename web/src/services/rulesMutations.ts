@@ -13,6 +13,7 @@ import type {
   CreateRuleRequest,
   DeleteRuleResponse,
   Rule,
+  SetRuleAlwaysApplyRequest,
   UpdateRuleRequest,
 } from '@shared-types';
 import { db } from '../config/firebase';
@@ -42,8 +43,8 @@ export async function createRuleInFirestore(
     color: request.color,
     tags: request.tags || [],
     applicableTo: request.applicableTo,
-    isDefault: request.isDefault || false,
     directoryIds: [],
+    alwaysApplyDirectoryIds: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -86,7 +87,6 @@ export async function updateRuleInFirestore(
   if (request.color !== undefined) updateData.color = request.color;
   if (request.tags !== undefined) updateData.tags = request.tags;
   if (request.applicableTo !== undefined) updateData.applicableTo = request.applicableTo;
-  if (request.isDefault !== undefined) updateData.isDefault = request.isDefault;
 
   await updateDoc(ruleRef(userId, request.ruleId), updateData);
 
@@ -174,6 +174,19 @@ export async function attachRuleToDirectoryInFirestore(
   });
 
   await batch.commit();
+}
+
+/** Turns always apply on or off for one rule in one folder (ADR 015). */
+export async function setRuleAlwaysApplyInFirestore(
+  userId: string,
+  request: SetRuleAlwaysApplyRequest,
+): Promise<void> {
+  await updateDoc(ruleRef(userId, request.ruleId), {
+    alwaysApplyDirectoryIds: request.alwaysApply
+      ? arrayUnion(request.directoryId)
+      : arrayRemove(request.directoryId),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function detachRuleFromDirectoryInFirestore(

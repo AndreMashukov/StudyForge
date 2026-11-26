@@ -5,10 +5,11 @@ import { DirectoryRulesPageContext } from './DirectoryRulesPageContext';
 import { IDirectoryRulesPageContext } from '../types/IDirectoryRulesPageContext';
 import { 
   useGetDirectoryRulesQuery, 
-  useDetachRuleFromDirectoryMutation 
+  useDetachRuleFromDirectoryMutation,
+  useSetRuleAlwaysApplyMutation,
 } from '../../../store/api/Rules';
 import { useGetDirectoryQuery } from '../../../store/api/Directory/DirectoryApi';
-import { Rule } from '@shared-types';
+import { Rule, ruleAlwaysAppliesIn } from '@shared-types';
 import { useBulkDetachDirectoryRules } from './hooks/useBulkDetachDirectoryRules';
 
 interface DirectoryRulesPageProviderProps {
@@ -53,6 +54,8 @@ export const DirectoryRulesPageProvider = ({
   );
 
   const [detachRuleFromDirectory] = useDetachRuleFromDirectoryMutation();
+  const [setRuleAlwaysApply, { isLoading: isAlwaysApplyUpdating }] =
+    useSetRuleAlwaysApplyMutation();
 
   // Extract direct and inherited rules
   const directRules: Rule[] = directoryId && rulesData?.inheritanceMap 
@@ -100,6 +103,23 @@ export const DirectoryRulesPageProvider = ({
     [navigate, directoryId]
   );
 
+  // Always apply is per folder (ADR 015): this toggles it for this folder only.
+  const handleToggleAlwaysApply = useCallback(
+    async (rule: Rule) => {
+      if (!directoryId) return;
+      try {
+        await setRuleAlwaysApply({
+          ruleId: rule.id,
+          directoryId,
+          alwaysApply: !ruleAlwaysAppliesIn(rule, directoryId),
+        }).unwrap();
+      } catch {
+        // Error is shown via the global errorToastMiddleware toast
+      }
+    },
+    [directoryId, setRuleAlwaysApply]
+  );
+
   const handleToggleCascadeView = useCallback(() => {
     setIsCascadeViewOpen((prev) => !prev);
   }, []);
@@ -124,11 +144,13 @@ export const DirectoryRulesPageProvider = ({
       error,
       isAssignModalOpen,
       isCascadeViewOpen,
+      isAlwaysApplyUpdating,
     },
     handlers: {
       handleAssignRule,
       handleRemoveRule,
       handleEditRule,
+      handleToggleAlwaysApply,
       handleToggleCascadeView,
       handleCloseAssignModal,
     },

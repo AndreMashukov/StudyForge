@@ -1401,7 +1401,6 @@ export function createAgentToolDefinitions(
               'Generation types the rule applies to. Required: choose at least one.',
             items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
           },
-          isDefault: { type: 'boolean' },
         },
         required: ['name', 'content', 'applicableTo'],
       },
@@ -1431,7 +1430,6 @@ export function createAgentToolDefinitions(
               : (parseOptionalRuleColor(args.color) ?? RuleColor.PURPLE),
           tags: args.tags === undefined ? [] : parseStringArray(args.tags),
           applicableTo,
-          isDefault: parseOptionalBoolean(args.isDefault) ?? false,
         });
         pushAction(context, {
           kind: 'create_rule',
@@ -1460,8 +1458,12 @@ export function createAgentToolDefinitions(
             type: 'array',
             items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
           },
-          isDefault: { type: 'boolean' },
           directoryId: { type: 'string' },
+          alwaysApply: {
+            type: 'boolean',
+            description:
+              'With directoryId: also make the new rule always apply (start ticked) in that folder only.',
+          },
         },
         required: ['blueprintId', 'name', 'content'],
       },
@@ -1503,8 +1505,9 @@ export function createAgentToolDefinitions(
               ? undefined
               : parseStringArray(args.tags, 'tags'),
           applicableTo,
-          isDefault: parseOptionalBoolean(args.isDefault) ?? false,
           directoryId,
+          alwaysApply:
+            parseOptionalBoolean(args.alwaysApply, 'alwaysApply') ?? false,
         });
         pushAction(context, {
           kind: 'create_rule_from_blueprint',
@@ -1519,7 +1522,7 @@ export function createAgentToolDefinitions(
     {
       name: 'update_rule',
       description:
-        'Update an existing rule. Provide ruleId and any fields to change (name, description, content, color, tags, applicableTo, isDefault).',
+        'Update an existing rule. Provide ruleId and any fields to change (name, description, content, color, tags, applicableTo). Always apply is per folder: set it with attach_rule_to_directory.',
       parameters: {
         type: 'object',
         properties: {
@@ -1533,7 +1536,6 @@ export function createAgentToolDefinitions(
             type: 'array',
             items: { type: 'string', enum: RULE_APPLICABILITY_ENUM },
           },
-          isDefault: { type: 'boolean' },
         },
         required: ['ruleId'],
       },
@@ -1578,9 +1580,6 @@ export function createAgentToolDefinitions(
             args.applicableTo,
           );
         }
-        if (args.isDefault !== undefined) {
-          updateRequest.isDefault = parseOptionalBoolean(args.isDefault);
-        }
 
         const hasUpdates =
           updateRequest.name !== undefined ||
@@ -1588,8 +1587,7 @@ export function createAgentToolDefinitions(
           updateRequest.content !== undefined ||
           updateRequest.color !== undefined ||
           updateRequest.tags !== undefined ||
-          updateRequest.applicableTo !== undefined ||
-          updateRequest.isDefault !== undefined;
+          updateRequest.applicableTo !== undefined;
 
         if (!hasUpdates) {
           throw new Error('Provide at least one field to update');
@@ -1608,12 +1606,14 @@ export function createAgentToolDefinitions(
     },
     {
       name: 'attach_rule_to_directory',
-      description: 'Attach a rule to a directory.',
+      description:
+        'Attach a rule to a directory. Pass alwaysApply true to also make it always apply (start ticked) in that folder only; subfolders are not affected.',
       parameters: {
         type: 'object',
         properties: {
           directoryId: { type: 'string' },
           ruleId: { type: 'string' },
+          alwaysApply: { type: 'boolean' },
         },
         required: ['directoryId', 'ruleId'],
       },
@@ -1625,7 +1625,11 @@ export function createAgentToolDefinitions(
           throw new Error('directoryId and ruleId are required');
         }
         assertDirectoryInScope(context, directoryId);
-        await attachRuleToDirectory(context.userId, ruleId, directoryId);
+        const alwaysApply =
+          parseOptionalBoolean(args.alwaysApply, 'alwaysApply') ?? false;
+        await attachRuleToDirectory(context.userId, ruleId, directoryId, {
+          alwaysApply,
+        });
         const directory = await directoryService.getDirectory(
           context.userId,
           directoryId,

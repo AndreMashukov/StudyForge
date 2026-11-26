@@ -4,7 +4,6 @@ import { Label } from '../../../components/ui/Label';
 import { Textarea } from '../../../components/ui/Textarea';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { Checkbox } from '../../../components/ui/Checkbox';
 import { Check, X } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useRuleEditorForm } from '../context/hooks/useRuleEditorForm';
@@ -229,13 +228,6 @@ export const RuleFormSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Always apply checkbox */}
-      <Checkbox
-        id="rule-isDefault"
-        checked={formData.isDefault}
-        onChange={(checked) => updateField('isDefault', checked)}
-        label="Always apply"
-      />
 
     </div>
   );
