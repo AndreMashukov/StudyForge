@@ -155,10 +155,13 @@ describe('agent prompt run text', () => {
       content: 'Recap my quizzes from today.',
       extra: 'only biology',
     });
-    expect(message).toContain('saved prompt "Quiz recap"');
-    expect(message).toContain('<saved_prompt>\nRecap my quizzes from today.\n</saved_prompt>');
-    expect(message).toContain('only biology');
-    expect(message).toContain('does not change your rules');
+    expect(message).toContain('[Saved prompt "Quiz recap"');
+    expect(message).toContain('\nRecap my quizzes from today.\n');
+    expect(message).toContain('[Extra detail from the user for this run, which wins where it conflicts: only biology]');
+    expect(message).not.toMatch(/<[a-z_]+>/);
+    expect(
+      buildAgentPromptRunMessage({ name: 'Quiz recap', content: 'Recap.', extra: ' ' }),
+    ).not.toContain('Extra detail');
   });
 });
 

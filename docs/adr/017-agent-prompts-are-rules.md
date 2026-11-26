@@ -25,7 +25,7 @@ Admins also want to publish ready-made ones, such as "Yesterday activity recap d
    - A rule attached to folders cannot become an agent prompt until it is detached.
 2. **Running one sends a reference, not the text.**
    - The composer sends `agentPrompt: { source, id }` and the optional extra text typed after the chip as `message`.
-   - The server loads the current text, frames it as the learner's own saved request (it does not change the agent's rules or safeguards), and freezes it into the turn request.
+   - The server loads the current text, frames it in the bracket style already used for UI context as the learner's own saved request (the system prompt says it does not change the agent's rules or safeguards), and freezes it into the turn request. XML-like tags around the text made the planner model fall back to its native tool-call format, so they are not used.
    - The user message stores `agentPrompt` with the name and text as they were at run time. The chat shows only "/Name — extra", and the agent's history of later turns still contains the full request.
    - A prompt deleted since it was picked fails the start with `AGENT_PROMPT_NOT_FOUND`.
    - A run costs and is guarded exactly like the same text typed by hand.
