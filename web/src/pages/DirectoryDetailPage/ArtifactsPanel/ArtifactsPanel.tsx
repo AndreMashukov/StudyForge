@@ -99,7 +99,7 @@ export const ArtifactsPanel: React.FC<IArtifactsPanelProps> = ({
   return (
     <div className="space-y-4">
       <div
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+        className="flex flex-wrap gap-2"
         role="group"
         aria-label="Create an artifact"
       >
@@ -110,14 +110,13 @@ export const ArtifactsPanel: React.FC<IArtifactsPanelProps> = ({
               key={config.type}
               type="button"
               variant="outline"
-              className="h-auto justify-start gap-2 whitespace-normal px-3 py-3"
+              size="sm"
+              className="h-8 gap-1.5 rounded-full px-3 text-xs"
               onClick={() => onCreate(config.createType)}
               aria-label={`Create ${config.tileLabel.toLowerCase()}`}
             >
-              <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-              <span className="text-left text-sm font-medium leading-tight">
-                {config.tileLabel}
-              </span>
+              <Icon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+              <span className="font-medium">{config.tileLabel}</span>
             </Button>
           );
         })}
