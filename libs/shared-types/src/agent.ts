@@ -24,6 +24,19 @@ export const agentPromptContextSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
+/**
+ * Home folder for a new thread: the directory its first message was sent from
+ * (prompt context of type `directory`). Document, rule and no-context chats
+ * have none. Independent of the thread's scope.
+ */
+export function resolveAgentThreadHomeDirectoryId(
+  promptContext: z.output<typeof agentPromptContextSchema> | undefined,
+): string | undefined {
+  return promptContext?.type === 'directory'
+    ? promptContext.directoryId
+    : undefined;
+}
+
 export const agentMessageSchema = z
   .object({
     scope: agentScopeSchema.default('workspace'),
@@ -268,6 +281,12 @@ export interface IAgentThread {
   userId: string;
   scope: AgentScope;
   directoryId?: string;
+  /**
+   * Home folder: the directory the chat was started in (its first message's
+   * context was that directory). Set once at creation and never changed;
+   * independent of `scope`. Folder Chats tabs list threads by this field.
+   */
+  homeDirectoryId?: string;
   title?: string;
   preview?: string;
   createdAt: string;
@@ -284,6 +303,7 @@ export interface AgentThreadSummary {
   preview?: string;
   scope: AgentScope;
   directoryId?: string;
+  homeDirectoryId?: string;
   createdAt: string;
   updatedAt: string;
   lastMessageAt?: string;

@@ -49,6 +49,7 @@ export * from './agent';
 export * from './agent-turn';
 export * from './agent-questions';
 export * from './directory-order';
+export * from './directory-item-order';
 export * from './onboarding';
 export * from './library-search';
 export * from './document-blocks';

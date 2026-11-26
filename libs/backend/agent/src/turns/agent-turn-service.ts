@@ -12,6 +12,7 @@ import {
   AGENT_TURN_IN_PROGRESS_CODE,
   buildAgentUserMessageId,
   parseUserOnboarding,
+  resolveAgentThreadHomeDirectoryId,
   STARTER_COURSE_UNAVAILABLE_CODE,
 } from '@shared-types';
 import {
@@ -236,6 +237,9 @@ export async function startAgentTurn(
 
         const nowTimestamp = Timestamp.fromDate(now);
         const userMessageId = userMessageRef.id;
+        const homeDirectoryId = resolveAgentThreadHomeDirectoryId(
+          input.promptContext,
+        );
 
         transaction.set(
           threadRef,
@@ -249,6 +253,7 @@ export async function startAgentTurn(
                   ...(input.directoryId
                     ? { directoryId: input.directoryId }
                     : {}),
+                  ...(homeDirectoryId ? { homeDirectoryId } : {}),
                   title: deriveAgentThreadTitle(input.message),
                   createdAt: nowTimestamp,
                 }),

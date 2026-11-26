@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AgentPromptContext,
   AgentScope,
+  AgentThreadSummary,
   AgentTurn,
   GetAgentThreadResponse,
   IAgentThread,
@@ -12,6 +13,7 @@ import { isAgentTurnTerminal } from '@shared-types';
 import {
   getAgentThreadFromFirestore,
   listAgentThreadsFromFirestore,
+  subscribeDirectoryAgentThreads,
 } from '@studyforge/client-data/agentThreadFirestore';
 import { createAgentThreadMessageSync } from '@studyforge/client-data/agentThreadMessageSync';
 import {
@@ -65,6 +67,48 @@ export function useAgentThreads(userId: string | undefined, limit = 20) {
       return listAgentThreadsFromFirestore(userId, limit);
     },
   });
+}
+
+/**
+ * Chats started in a folder (their home folder), newest message first, kept
+ * live while the screen is focused.
+ */
+export function useDirectoryAgentThreads(
+  userId: string | undefined,
+  directoryId: string | null,
+  active: boolean,
+) {
+  const client = useQueryClient();
+  const result = useQuery({
+    queryKey: queryKeys.directoryAgentThreads(userId ?? '', directoryId ?? ''),
+    enabled: Boolean(userId && directoryId && active),
+    queryFn: () => {
+      if (!userId || !directoryId) throw new Error('Directory unavailable');
+      return new Promise<AgentThreadSummary[]>((resolve, reject) => {
+        const unsubscribe = subscribeDirectoryAgentThreads(userId, directoryId, {
+          onThreads: (threads) => {
+            unsubscribe();
+            resolve(threads);
+          },
+          onError: (error) => {
+            unsubscribe();
+            reject(error);
+          },
+        });
+      });
+    },
+  });
+  useEffect(() => {
+    if (!userId || !directoryId || !active) return;
+    return subscribeDirectoryAgentThreads(userId, directoryId, {
+      onThreads: (threads) =>
+        client.setQueryData(
+          queryKeys.directoryAgentThreads(userId, directoryId),
+          threads,
+        ),
+    });
+  }, [userId, directoryId, active, client]);
+  return result;
 }
 
 /** Bumps when the app returns to the foreground, so listeners reconnect. */

@@ -1,9 +1,11 @@
 import React from 'react';
-import { FileText, Brain, Layers, Presentation, Settings, Network, ListOrdered, Puzzle } from 'lucide-react';
+import { FileText, MessageSquare, Settings, Sparkles } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/Button';
 
-export type PanelType = 'sources' | 'quizzes' | 'cards' | 'slides' | 'diagramQuizzes' | 'sequenceQuizzes' | 'matchQuizzes' | 'rules';
+import type { DirectoryTab } from '../../utils/directoryUrl';
+
+export type PanelType = DirectoryTab;
 
 interface SidebarButtonProps {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -11,6 +13,7 @@ interface SidebarButtonProps {
   panel: PanelType;
   activePanel: PanelType;
   onPanelChange: (panel: PanelType) => void;
+  count?: number;
 }
 
 const SidebarButton: React.FC<SidebarButtonProps> = ({
@@ -19,6 +22,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
   panel,
   activePanel,
   onPanelChange,
+  count,
 }) => {
   const isActive = activePanel === panel;
   return (
@@ -32,10 +36,17 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
           ? 'text-[#8B5CF6] bg-[#8B5CF6]/10'
           : 'text-[#9CA3AF] hover:text-foreground hover:bg-muted/50'
       )}
-      aria-label={label}
+      aria-label={count === undefined ? label : `${label} (${count})`}
       aria-pressed={isActive}
     >
-      <Icon size={20} />
+      <span className="relative">
+        <Icon size={20} />
+        {count ? (
+          <span className="absolute -right-3 -top-2 min-w-4 rounded-full bg-muted px-1 text-center text-[9px] font-semibold leading-4 text-foreground">
+            {count > 99 ? '99+' : count}
+          </span>
+        ) : null}
+      </span>
       <span className="text-[10px] leading-tight font-medium">{label}</span>
     </Button>
   );
@@ -44,16 +55,14 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
 interface DirectoryIconSidebarProps {
   activePanel: PanelType;
   onPanelChange: (panel: PanelType) => void;
+  /** Item counts shown on the content entries (documents, artifacts, chats). */
+  counts?: Partial<Record<PanelType, number>>;
 }
 
 const CONTENT_ITEMS: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; panel: PanelType }[] = [
-  { icon: FileText, label: 'Sources', panel: 'sources' },
-  { icon: Brain, label: 'Quizzes', panel: 'quizzes' },
-  { icon: Layers, label: 'Cards', panel: 'cards' },
-  { icon: Presentation, label: 'Slides', panel: 'slides' },
-  { icon: Network, label: 'Diagrams', panel: 'diagramQuizzes' },
-  { icon: ListOrdered, label: 'Sequence', panel: 'sequenceQuizzes' },
-  { icon: Puzzle, label: 'Match Quiz', panel: 'matchQuizzes' },
+  { icon: FileText, label: 'Documents', panel: 'sources' },
+  { icon: Sparkles, label: 'Artifacts', panel: 'artifacts' },
+  { icon: MessageSquare, label: 'Chats', panel: 'chats' },
 ];
 
 const SETTINGS_ITEMS: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; panel: PanelType }[] = [
@@ -63,6 +72,7 @@ const SETTINGS_ITEMS: { icon: React.ComponentType<{ size?: number; className?: s
 export const DirectoryIconSidebar: React.FC<DirectoryIconSidebarProps> = ({
   activePanel,
   onPanelChange,
+  counts,
 }) => {
   return (
     <nav
@@ -78,6 +88,7 @@ export const DirectoryIconSidebar: React.FC<DirectoryIconSidebarProps> = ({
             panel={item.panel}
             activePanel={activePanel}
             onPanelChange={onPanelChange}
+            count={counts?.[item.panel]}
           />
         ))}
       </div>

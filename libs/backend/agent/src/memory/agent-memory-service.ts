@@ -87,6 +87,7 @@ function mapThread(
     userId: optionalString(data?.userId) ?? userId,
     scope: data?.scope === 'directory' ? 'directory' : 'workspace',
     directoryId: optionalString(data?.directoryId),
+    homeDirectoryId: optionalString(data?.homeDirectoryId),
     title: optionalString(data?.title),
     preview: optionalString(data?.preview),
     createdAt: timestampToIso(data?.createdAt, fallbackIso),
@@ -117,6 +118,9 @@ function toThreadSummary(thread: IAgentThread): AgentThreadSummary {
     preview: thread.preview,
     scope: thread.scope,
     directoryId: thread.directoryId,
+    ...(thread.homeDirectoryId
+      ? { homeDirectoryId: thread.homeDirectoryId }
+      : {}),
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
     lastMessageAt: thread.lastMessageAt,

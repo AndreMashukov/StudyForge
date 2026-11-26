@@ -16,6 +16,11 @@ interface UIState {
   librarySearchOpen: boolean;
   /** Text waiting to be placed in the Assistant's input when its panel opens. */
   agentLauncherDraft: string | null;
+  /**
+   * Thread to show when the Assistant overlay next opens (from a folder's
+   * Chats tab). `threadId: null` opens a new chat. Spent once shown.
+   */
+  agentLauncherThread: { threadId: string | null } | null;
 }
 
 const initialState: UIState = {
@@ -29,6 +34,7 @@ const initialState: UIState = {
   },
   librarySearchOpen: false,
   agentLauncherDraft: null,
+  agentLauncherThread: null,
 };
 
 const uiSlice = createSlice({
@@ -72,6 +78,12 @@ const uiSlice = createSlice({
     setLibrarySearchOpen: (state, action: PayloadAction<boolean>) => {
       state.librarySearchOpen = action.payload;
     },
+    setAgentLauncherThread: (
+      state,
+      action: PayloadAction<{ threadId: string | null } | null>,
+    ) => {
+      state.agentLauncherThread = action.payload;
+    },
     setAgentLauncherDraft: (state, action: PayloadAction<string | null>) => {
       state.agentLauncherDraft = action.payload;
     },
@@ -89,6 +101,7 @@ export const {
   setSidebarOpenSections,
   setLibrarySearchOpen,
   setAgentLauncherDraft,
+  setAgentLauncherThread,
 } = uiSlice.actions;
 
 // Selectors
@@ -100,5 +113,7 @@ export const selectSidebarOpenSections = (state: { ui: UIState }) => state.ui.si
 export const selectSidebarActiveSection = (state: { ui: UIState }) => state.ui.sidebar.activeSection;
 export const selectLibrarySearchOpen = (state: { ui: UIState }) => state.ui.librarySearchOpen;
 export const selectAgentLauncherDraft = (state: { ui: UIState }) => state.ui.agentLauncherDraft;
+export const selectAgentLauncherThread = (state: { ui: UIState }) =>
+  state.ui.agentLauncherThread;
 
 export default uiSlice.reducer;

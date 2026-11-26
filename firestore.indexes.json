@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "agentThreads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "homeDirectoryId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "items",
       "queryScope": "COLLECTION",
       "fields": [

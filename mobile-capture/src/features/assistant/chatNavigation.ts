@@ -7,7 +7,7 @@ export interface IStartChat {
   label?: string;
 }
 
-/** Open a new assistant chat. A directory (or a document's directory) scopes it to the directory-scoped agent. */
+/** Open a new assistant chat. A directory (or a document's directory) is its context; a directory chat lists under that folder's Chats. */
 export function startChat(
   router: ReturnType<typeof useRouter>,
   input: IStartChat,

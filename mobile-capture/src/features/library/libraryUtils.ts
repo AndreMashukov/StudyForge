@@ -40,14 +40,6 @@ export function filterTitle<T extends { title: string }>(items: T[], search: str
   return items.filter((item) => item.title.toLocaleLowerCase().includes(term));
 }
 
-export function sortItems(items: DirectoryItemSummary[]): DirectoryItemSummary[] {
-  return [...items].sort((a, b) => {
-    const aOrder = typeof a.sortOrder === 'number' && Number.isFinite(a.sortOrder) ? a.sortOrder : Infinity;
-    const bOrder = typeof b.sortOrder === 'number' && Number.isFinite(b.sortOrder) ? b.sortOrder : Infinity;
-    return aOrder - bOrder || a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
-  });
-}
-
 const artifactPaths: Partial<Record<DirectoryItemSummary['itemType'], string>> = {
   quiz: 'quiz', flashcard: 'flashcards', slideDeck: 'slides',
   diagramQuiz: 'diagram-quiz', sequenceQuiz: 'sequence-quiz', matchQuiz: 'match-quiz',

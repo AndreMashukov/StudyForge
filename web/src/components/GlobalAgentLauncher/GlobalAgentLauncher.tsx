@@ -10,7 +10,9 @@ import { cn } from '../../lib/utils';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux';
 import {
   selectAgentLauncherDraft,
+  selectAgentLauncherThread,
   setAgentLauncherDraft,
+  setAgentLauncherThread,
 } from '../../store/slices/uiSlice';
 import { WELCOME_PATH } from '../../utils/onboardingRedirect';
 
@@ -22,6 +24,11 @@ export const GlobalAgentLauncher: React.FC = () => {
   const [open, setOpen] = useState(false);
   const dispatch = useAppDispatch();
   const draft = useAppSelector(selectAgentLauncherDraft);
+  const requestedThread = useAppSelector(selectAgentLauncherThread);
+  // The thread the open panel was mounted with (kept while it stays open).
+  const [panelThread, setPanelThread] = useState<{ threadId: string | null }>();
+  // Bumped per request so asking again for the shown thread still remounts.
+  const [panelThreadRequest, setPanelThreadRequest] = useState(0);
   const panelVisible = Boolean(user) && !isAppFullscreen && !hasOpenModal && open;
 
   useEffect(() => {
@@ -34,6 +41,24 @@ export const GlobalAgentLauncher: React.FC = () => {
       setOpen(true);
     }
   }, [draft]);
+
+  // A folder's Chats tab asks to show a thread (or a new chat): remount the
+  // panel on it, then spend the request.
+  useEffect(() => {
+    if (requestedThread === null) {
+      return;
+    }
+    setPanelThread(requestedThread);
+    setPanelThreadRequest((count) => count + 1);
+    setOpen(true);
+    dispatch(setAgentLauncherThread(null));
+  }, [requestedThread, dispatch]);
+
+  useEffect(() => {
+    if (!open) {
+      setPanelThread(undefined);
+    }
+  }, [open]);
 
   // The panel reads the draft once when it mounts; after that it is spent.
   useEffect(() => {
@@ -80,9 +105,11 @@ export const GlobalAgentLauncher: React.FC = () => {
 
   return (
     <AgentPanel
+      key={panelThread ? `request:${panelThreadRequest}` : 'remembered'}
       scope="workspace"
       variant="overlay"
       initialInput={draft ?? undefined}
+      initialThread={panelThread}
       onClose={() => setOpen(false)}
       onMutated={() => {
         // Rule caches are invalidated from AgentPanel action events.

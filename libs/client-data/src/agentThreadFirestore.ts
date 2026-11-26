@@ -3,8 +3,10 @@ import {
   getDocs,
   getDocsFromServer,
   limit,
+  onSnapshot,
   orderBy,
   query,
+  where,
 } from 'firebase/firestore';
 import type {
   AgentThreadSummary,
@@ -33,6 +35,8 @@ import {
 } from './firestorePaths';
 
 const THREAD_LIST_DEFAULT_LIMIT = 50;
+/** Folder Chats tabs show at most this many threads (newest message first). */
+export const DIRECTORY_CHAT_LIST_LIMIT = 50;
 const THREAD_MESSAGES_MAX_RETURNED = 200;
 const FALLBACK_THREAD_TITLE = 'Conversation';
 
@@ -48,6 +52,7 @@ export function mapAgentThread(
     userId: optionalString(data?.userId) ?? userId,
     scope: data?.scope === 'directory' ? 'directory' : 'workspace',
     directoryId: optionalString(data?.directoryId),
+    homeDirectoryId: optionalString(data?.homeDirectoryId),
     title: optionalString(data?.title),
     preview: optionalString(data?.preview),
     createdAt: timestampToIso(data?.createdAt, fallbackIso),
@@ -77,6 +82,9 @@ function toThreadSummary(thread: IAgentThread): AgentThreadSummary {
     preview: thread.preview,
     scope: thread.scope,
     directoryId: thread.directoryId,
+    ...(thread.homeDirectoryId
+      ? { homeDirectoryId: thread.homeDirectoryId }
+      : {}),
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
     lastMessageAt: thread.lastMessageAt,
@@ -187,5 +195,52 @@ export async function listAgentThreadsFromFirestore(
     toThreadSummary(
       mapAgentThread(threadDoc.id, threadDoc.data(), userId, fallbackIso),
     ),
+  );
+}
+
+function directoryAgentThreadsQuery(
+  userId: string,
+  directoryId: string,
+  listLimit: number,
+) {
+  return query(
+    userCollection(userId, 'agentThreads'),
+    where('homeDirectoryId', '==', directoryId),
+    orderBy('lastMessageAt', 'desc'),
+    limit(listLimit),
+  );
+}
+
+/**
+ * Live list of the threads started in a folder (their home folder), newest
+ * message first. Cache-only snapshots are skipped so an offline cache never
+ * shows a stale list as current. Returns the unsubscribe function.
+ */
+export function subscribeDirectoryAgentThreads(
+  userId: string,
+  directoryId: string,
+  handlers: {
+    onThreads: (threads: AgentThreadSummary[]) => void;
+    onError?: (error: Error) => void;
+  },
+  listLimit = DIRECTORY_CHAT_LIST_LIMIT,
+): () => void {
+  return onSnapshot(
+    directoryAgentThreadsQuery(userId, directoryId, listLimit),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      if (snapshot.metadata.fromCache) {
+        return;
+      }
+      const fallbackIso = new Date().toISOString();
+      handlers.onThreads(
+        snapshot.docs.map((threadDoc) =>
+          toThreadSummary(
+            mapAgentThread(threadDoc.id, threadDoc.data(), userId, fallbackIso),
+          ),
+        ),
+      );
+    },
+    (error) => handlers.onError?.(error),
   );
 }

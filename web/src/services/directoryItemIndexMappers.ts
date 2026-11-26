@@ -9,46 +9,9 @@ import {
   type GetDirectoryContentsWithArtifactSummariesResponse,
   compareFolderOrder,
   directoryItemTypeToArtifactSummaryType,
+  sortArtifactsForDisplay,
+  sortDocumentsForDisplay,
 } from '@shared-types';
-
-function compareCreatedAtDesc(
-  left: DirectoryItemSummary,
-  right: DirectoryItemSummary,
-): number {
-  const leftTime = new Date(String(left.createdAt)).getTime();
-  const rightTime = new Date(String(right.createdAt)).getTime();
-  return rightTime - leftTime;
-}
-
-function typeHasManualOrder(items: DirectoryItemSummary[]): boolean {
-  return items.some((item) => typeof item.sortOrder === 'number');
-}
-
-function compareDirectoryItems(
-  left: DirectoryItemSummary,
-  right: DirectoryItemSummary,
-  hasManualOrder: boolean,
-): number {
-  if (!hasManualOrder) {
-    return compareCreatedAtDesc(left, right);
-  }
-
-  const leftHasOrder = typeof left.sortOrder === 'number';
-  const rightHasOrder = typeof right.sortOrder === 'number';
-
-  if (leftHasOrder && rightHasOrder) {
-    const leftOrder = left.sortOrder ?? 0;
-    const rightOrder = right.sortOrder ?? 0;
-    return leftOrder - rightOrder;
-  }
-  if (leftHasOrder && !rightHasOrder) {
-    return -1;
-  }
-  if (!leftHasOrder && rightHasOrder) {
-    return 1;
-  }
-  return compareCreatedAtDesc(left, right);
-}
 
 function compareSubdirectoryName(
   left: DirectoryItemSummary,
@@ -151,18 +114,12 @@ function limitArtifactsByType(
     grouped.set(artifactType, bucket);
   }
 
+  // Keep the newest `artifactLimit` of each type (artifacts have no manual order).
   const limited: DirectoryItemSummary[] = [];
   for (const bucket of grouped.values()) {
-    const hasManualOrder = typeHasManualOrder(bucket);
-    limited.push(
-      ...bucket
-        .sort((left, right) =>
-          compareDirectoryItems(left, right, hasManualOrder),
-        )
-        .slice(0, artifactLimit),
-    );
+    limited.push(...sortArtifactsForDisplay(bucket).slice(0, artifactLimit));
   }
-  return limited;
+  return sortArtifactsForDisplay(limited);
 }
 
 export function mapDirectoryItemsToContentsResponse(
@@ -175,13 +132,9 @@ export function mapDirectoryItemsToContentsResponse(
     .sort(compareSubdirectoryName)
     .map((item) => itemToSubdirectory(item, directory.userId));
 
-  const documentItems = items.filter((item) => item.itemType === 'document');
-  const documentsHasManualOrder = typeHasManualOrder(documentItems);
-  const documents = documentItems
-    .sort((left, right) =>
-      compareDirectoryItems(left, right, documentsHasManualOrder),
-    )
-    .map((item) => itemToDocument(item, directory.userId));
+  const documents = sortDocumentsForDisplay(
+    items.filter((item) => item.itemType === 'document'),
+  ).map((item) => itemToDocument(item, directory.userId));
 
   const artifactItems = limitArtifactsByType(
     items.filter(

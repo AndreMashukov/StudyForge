@@ -3,6 +3,7 @@ import { auth } from '../../../config/firebase';
 import {
   getAgentThreadFromFirestore,
   listAgentThreadsFromFirestore,
+  subscribeDirectoryAgentThreads,
 } from '../../../services/agentThreadFirestore';
 import {
   createAgentThreadMessageSync,
@@ -26,7 +27,10 @@ import type {
   StartAgentTurnRequest,
   StartAgentTurnResponse,
 } from '@shared-types';
-import type { IGetAgentTurnRequest } from './IAgentThreadApi';
+import type {
+  IGetAgentTurnRequest,
+  IListDirectoryAgentThreadsRequest,
+} from './IAgentThreadApi';
 
 function mutationError(error: unknown) {
   return customError(error instanceof Error ? error.message : 'Unknown error');
@@ -119,6 +123,64 @@ export const agentThreadApi = baseApi.injectEndpoints({
           : [{ type: 'AgentThread', id: 'LIST' }],
     }),
 
+    /** Threads started in a folder (home folder), newest message first; live. */
+    listDirectoryAgentThreads: builder.query<
+      ListAgentThreadsResponse,
+      IListDirectoryAgentThreadsRequest
+    >({
+      async queryFn({ directoryId }) {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return authRequiredError();
+        try {
+          const threads = await new Promise<ListAgentThreadsResponse['threads']>(
+            (resolve, reject) => {
+              const unsubscribe = subscribeDirectoryAgentThreads(userId, directoryId, {
+                onThreads: (next) => {
+                  unsubscribe();
+                  resolve(next);
+                },
+                onError: (error) => {
+                  unsubscribe();
+                  reject(error);
+                },
+              });
+            },
+          );
+          return { data: { threads } };
+        } catch (error) {
+          return mutationError(error);
+        }
+      },
+      async onCacheEntryAdded(
+        { directoryId },
+        { updateCachedData, cacheDataLoaded, cacheEntryRemoved },
+      ) {
+        try {
+          await cacheDataLoaded;
+        } catch {
+          return;
+        }
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+          await cacheEntryRemoved;
+          return;
+        }
+        const unsubscribe = subscribeDirectoryAgentThreads(userId, directoryId, {
+          onThreads: (threads) => {
+            updateCachedData(() => ({ threads }));
+          },
+        });
+        try {
+          await cacheEntryRemoved;
+        } finally {
+          unsubscribe();
+        }
+      },
+      providesTags: (_result, _error, { directoryId }) => [
+        { type: 'AgentThread', id: `DIRECTORY:${directoryId}` },
+      ],
+    }),
+
     /** One durable agent turn, kept live while the panel follows it. */
     getAgentTurn: builder.query<AgentTurn | null, IGetAgentTurnRequest>({
       async queryFn({ threadId, turnId }) {
@@ -187,6 +249,7 @@ export const agentThreadApi = baseApi.injectEndpoints({
 export const {
   useGetAgentThreadQuery,
   useListAgentThreadsQuery,
+  useListDirectoryAgentThreadsQuery,
   useGetAgentTurnQuery,
   useStartAgentTurnMutation,
   useCancelAgentTurnMutation,

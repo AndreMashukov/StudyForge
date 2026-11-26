@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DirectoryItemSummary } from '@shared-types';
 import type { IGetDirectoryTreeResponse } from '../../lib/api/studyforgeApiSchemas';
-import { filterTitle, flattenTree, getBreadcrumbs, getItemWebUrl, getLibraryLocationStorageKey, resolveDirectoryId, restoreLibraryDirectoryId, sortItems } from './libraryUtils';
+import { filterTitle, flattenTree, getBreadcrumbs, getItemWebUrl, getLibraryLocationStorageKey, resolveDirectoryId, restoreLibraryDirectoryId } from './libraryUtils';
 import { queryKeys } from '../../lib/api/queryKeys';
 
 type IDirectory = IGetDirectoryTreeResponse['tree'][number]['directory'];
@@ -27,9 +27,8 @@ describe('library navigation', () => {
     expect(resolveDirectoryId(directories, 'missing')).toBeNull();
     expect(resolveDirectoryId(directories, 'child')).toBe('child');
   });
-  it('filters only supplied entries and orders manual entries before alphabetical entries', () => {
+  it('filters only supplied entries by title', () => {
     const entries = [item('z', 'Zebra', 'document'), item('b', 'Beta', 'document', 2), item('a', 'Alpha', 'document', 1), item('c', 'Alpha', 'document')];
-    expect(sortItems(entries).map((entry) => entry.id)).toEqual(['a', 'b', 'c', 'z']);
     expect(filterTitle(entries, ' ALP ').map((entry) => entry.id)).toEqual(['a', 'c']);
   });
   it('uses separate cache and browsing keys for each account', () => {
