@@ -110,12 +110,14 @@ export const ArtifactsPanel: React.FC<IArtifactsPanelProps> = ({
               key={config.type}
               type="button"
               variant="outline"
-              className="h-auto justify-start gap-2 px-3 py-3"
+              className="h-auto justify-start gap-2 whitespace-normal px-3 py-3"
               onClick={() => onCreate(config.createType)}
               aria-label={`Create ${config.tileLabel.toLowerCase()}`}
             >
               <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-              <span className="truncate text-sm font-medium">{config.tileLabel}</span>
+              <span className="text-left text-sm font-medium leading-tight">
+                {config.tileLabel}
+              </span>
             </Button>
           );
         })}
