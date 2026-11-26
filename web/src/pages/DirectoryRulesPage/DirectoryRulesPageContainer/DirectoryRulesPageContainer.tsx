@@ -1,5 +1,4 @@
 import { ArrowLeft, ClipboardList, Folder, FolderInput, Plus } from 'lucide-react';
-import { ruleAlwaysAppliesIn } from '@shared-types';
 import { Page } from '../../../components/Page';
 import { Button } from '../../../components/ui/Button';
 import { useDirectoryRulesPage } from '../context/DirectoryRulesPageContext';
@@ -191,7 +190,7 @@ export const DirectoryRulesPageContainer = ({
                   onEdit={() => handleEditRule(rule.id)}
                   onRemove={() => handleRemoveRule(rule.id)}
                   showRemoveButton
-                  alwaysApply={ruleAlwaysAppliesIn(rule, state.directoryId)}
+                  alwaysApply={state.defaultRuleIds.includes(rule.id)}
                   onToggleAlwaysApply={() => handleToggleAlwaysApply(rule)}
                   alwaysApplyDisabled={state.isAlwaysApplyUpdating}
                   selected={bulkDetach.isSelected(rule.id)}
@@ -254,7 +253,7 @@ export const DirectoryRulesPageContainer = ({
                           rule={rule}
                           onEdit={() => handleEditRule(rule.id)}
                           isInherited
-                          alwaysApply={ruleAlwaysAppliesIn(rule, state.directoryId)}
+                          alwaysApply={state.defaultRuleIds.includes(rule.id)}
                           onToggleAlwaysApply={() => handleToggleAlwaysApply(rule)}
                           alwaysApplyDisabled={state.isAlwaysApplyUpdating}
                         />

@@ -1462,7 +1462,7 @@ export function createAgentToolDefinitions(
           alwaysApply: {
             type: 'boolean',
             description:
-              'With directoryId: also make the new rule always apply (start ticked) in that folder only.',
+              'With directoryId: the attached rule applies by default in that folder and its subfolders. Pass false to attach it switched off by default.',
           },
         },
         required: ['blueprintId', 'name', 'content'],
@@ -1507,7 +1507,7 @@ export function createAgentToolDefinitions(
           applicableTo,
           directoryId,
           alwaysApply:
-            parseOptionalBoolean(args.alwaysApply, 'alwaysApply') ?? false,
+            parseOptionalBoolean(args.alwaysApply, 'alwaysApply') ?? true,
         });
         pushAction(context, {
           kind: 'create_rule_from_blueprint',
@@ -1522,7 +1522,7 @@ export function createAgentToolDefinitions(
     {
       name: 'update_rule',
       description:
-        'Update an existing rule. Provide ruleId and any fields to change (name, description, content, color, tags, applicableTo). Always apply is per folder: set it with attach_rule_to_directory.',
+        'Update an existing rule. Provide ruleId and any fields to change (name, description, content, color, tags, applicableTo). Whether a rule applies by default is set per folder with attach_rule_to_directory.',
       parameters: {
         type: 'object',
         properties: {
@@ -1607,7 +1607,7 @@ export function createAgentToolDefinitions(
     {
       name: 'attach_rule_to_directory',
       description:
-        'Attach a rule to a directory. Pass alwaysApply true to also make it always apply (start ticked) in that folder only; subfolders are not affected.',
+        'Attach a rule to a directory. An attached rule applies by default to everything generated in that folder and its subfolders. Pass alwaysApply false to attach it switched off by default (it can still be picked for a single generation).',
       parameters: {
         type: 'object',
         properties: {
@@ -1626,7 +1626,7 @@ export function createAgentToolDefinitions(
         }
         assertDirectoryInScope(context, directoryId);
         const alwaysApply =
-          parseOptionalBoolean(args.alwaysApply, 'alwaysApply') ?? false;
+          parseOptionalBoolean(args.alwaysApply, 'alwaysApply') ?? true;
         await attachRuleToDirectory(context.userId, ruleId, directoryId, {
           alwaysApply,
         });

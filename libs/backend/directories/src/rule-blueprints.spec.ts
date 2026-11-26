@@ -158,7 +158,6 @@ describe('rule-blueprints', () => {
       name: 'My Quiz Rule',
       content: 'Custom quiz content',
       directoryId: 'dir-1',
-      alwaysApply: true,
     });
 
     expect(attachRuleToDirectory).toHaveBeenCalledWith(

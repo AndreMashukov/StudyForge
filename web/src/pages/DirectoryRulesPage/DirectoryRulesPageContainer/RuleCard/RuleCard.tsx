@@ -13,7 +13,7 @@ export interface IDirectoryRuleCard {
   showRemoveButton?: boolean;
   selected?: boolean;
   onSelectChange?: (selected: boolean) => void;
-  /** Always apply in the folder being viewed (ADR 015). */
+  /** Applies by default in the folder being viewed (always apply, ADR 016). */
   alwaysApply?: boolean;
   onToggleAlwaysApply?: () => void;
   alwaysApplyDisabled?: boolean;
@@ -164,8 +164,8 @@ export const RuleCard = ({
               aria-pressed={alwaysApply}
               title={
                 alwaysApply
-                  ? 'Starts ticked when you create in this folder. Click to stop.'
-                  : 'Tick this prompt by default when you create in this folder.'
+                  ? 'Applied by default to what you create in this folder and its subfolders. Click to switch off.'
+                  : 'Not applied by default here. Click to apply it by default in this folder and its subfolders.'
               }
               className="gap-1.5"
             >
@@ -173,7 +173,7 @@ export const RuleCard = ({
                 className={cn('h-3.5 w-3.5', alwaysApply && 'fill-current')}
                 aria-hidden="true"
               />
-              {alwaysApply ? 'Always applies here' : 'Always apply here'}
+              {alwaysApply ? 'On by default' : 'Off by default'}
             </Button>
           )}
           <Button

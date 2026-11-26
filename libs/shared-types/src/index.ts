@@ -1303,11 +1303,12 @@ export interface Rule {
   applicableTo: RuleApplicability[];
   directoryIds: string[]; // Directories this rule is attached to
   /**
-   * Always apply, per folder (ADR 015): folders where this rule starts ticked
-   * in the prompt pickers. Exact folders only, not inherited by subfolders.
-   * Missing on rules created before ADR 015 (treat as none).
+   * Always apply (ADR 016): folders that explicitly switched this rule on /
+   * off by default. A folder in neither list follows its parent; with no
+   * choice anywhere the rule applies. See `rule-always-apply.ts`.
    */
   alwaysApplyDirectoryIds?: string[];
+  alwaysApplyOffDirectoryIds?: string[];
   sourceBlueprintId?: string;
   sourceBlueprintVersion?: number;
   sourceBlueprintName?: string;
@@ -1367,6 +1368,11 @@ export interface GetDirectoryRulesResponse {
   inheritanceMap: {
     [directoryId: string]: Rule[];
   };
+  /**
+   * Ids of the rules that apply by default in this directory (always apply,
+   * ADR 016). Present when ancestors were included.
+   */
+  defaultRuleIds?: string[];
 }
 
 export interface GetApplicableRulesRequest {

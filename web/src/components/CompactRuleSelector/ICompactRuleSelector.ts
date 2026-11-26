@@ -9,6 +9,6 @@ export interface ICompactRuleSelector {
   showResetButton?: boolean;
   /** Extra lock from a parent (e.g. sibling rule section is saving). */
   controlsDisabled?: boolean;
-  /** Reports when this selector is saving an always-apply update. */
+  /** Reports when this selector is saving the folder's default prompts. */
   onBusyChange?: (busy: boolean) => void;
 }

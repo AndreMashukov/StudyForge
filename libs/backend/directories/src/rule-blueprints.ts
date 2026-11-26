@@ -227,7 +227,7 @@ export async function createRuleFromBlueprint(
 
   if (request.directoryId) {
     await attachRuleToDirectory(userId, rule.id, request.directoryId, {
-      alwaysApply: request.alwaysApply === true,
+      alwaysApply: request.alwaysApply !== false,
     });
     const attached = await FirestorePaths.rule(userId, rule.id).get();
     if (attached.exists) {

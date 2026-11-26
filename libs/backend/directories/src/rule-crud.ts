@@ -44,7 +44,9 @@ export async function createRule(
     tags: request.tags || [],
     applicableTo,
     directoryIds: [], // Empty initially, attached separately
-    alwaysApplyDirectoryIds: [], // Always apply is per folder (ADR 015)
+    // Folders with an explicit always-apply choice (ADR 016)
+    alwaysApplyDirectoryIds: [],
+    alwaysApplyOffDirectoryIds: [],
     ...(request.sourceBlueprintId
       ? {
           sourceBlueprintId: request.sourceBlueprintId,
@@ -276,13 +278,19 @@ export async function attachRuleToDirectory(
     throw new Error('Directory not found');
   }
 
+  // An attached rule applies by default in the folder and its subfolders
+  // (ADR 016). `alwaysApply: false` attaches it switched off there instead.
+  const alwaysApply = options.alwaysApply !== false;
+
   // Add directory ID to rule's directoryIds array (if not already present)
   batch.update(ruleRef, {
     directoryIds: FieldValue.arrayUnion(directoryId),
-    // Optionally also always apply in this folder (ADR 015).
-    ...(options.alwaysApply
-      ? { alwaysApplyDirectoryIds: FieldValue.arrayUnion(directoryId) }
-      : {}),
+    alwaysApplyDirectoryIds: alwaysApply
+      ? FieldValue.arrayUnion(directoryId)
+      : FieldValue.arrayRemove(directoryId),
+    alwaysApplyOffDirectoryIds: alwaysApply
+      ? FieldValue.arrayRemove(directoryId)
+      : FieldValue.arrayUnion(directoryId),
     updatedAt: FieldValue.serverTimestamp(),
   });
 
@@ -321,9 +329,12 @@ export async function detachRuleFromDirectory(
     throw new Error('Directory not found');
   }
 
-  // Remove directory ID from rule's directoryIds array
+  // Remove directory ID from rule's directoryIds array, with the folder's own
+  // always-apply choice (it follows its parents again if it still inherits the rule).
   batch.update(ruleRef, {
     directoryIds: FieldValue.arrayRemove(directoryId),
+    alwaysApplyDirectoryIds: FieldValue.arrayRemove(directoryId),
+    alwaysApplyOffDirectoryIds: FieldValue.arrayRemove(directoryId),
     updatedAt: FieldValue.serverTimestamp(),
   });
 

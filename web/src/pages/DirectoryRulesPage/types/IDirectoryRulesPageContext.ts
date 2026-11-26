@@ -8,6 +8,8 @@ export interface IDirectoryRulesPageContext {
     directRules: Rule[];
     inheritedRules: { [directoryId: string]: Rule[] };
     allRules: Rule[];
+    /** Rules that apply by default in this folder (always apply). */
+    defaultRuleIds: string[];
     loading: boolean;
     error: string | null;
     isAssignModalOpen: boolean;
@@ -18,7 +20,7 @@ export interface IDirectoryRulesPageContext {
     handleAssignRule: () => void;
     handleRemoveRule: (ruleId: string) => void;
     handleEditRule: (ruleId: string) => void;
-    /** Turns always apply on or off for this rule in this folder only. */
+    /** Switches this rule on or off by default in this folder and below. */
     handleToggleAlwaysApply: (rule: Rule) => void;
     handleToggleCascadeView: () => void;
     handleCloseAssignModal: () => void;

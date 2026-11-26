@@ -256,7 +256,7 @@ describe('createAgentToolDefinitions rule tools', () => {
       'user-1',
       'rule-1',
       'dir-1',
-      { alwaysApply: false },
+      { alwaysApply: true },
     );
     expect(context.executedActions[0]?.summary).toBe(
       'Attached prompt to /Python',
@@ -265,13 +265,13 @@ describe('createAgentToolDefinitions rule tools', () => {
     await executeAgentTool(tools, 'attach_rule_to_directory', {
       directoryId: 'dir-1',
       ruleId: 'rule-1',
-      alwaysApply: true,
+      alwaysApply: false,
     });
     expect(attachRuleToDirectory).toHaveBeenLastCalledWith(
       'user-1',
       'rule-1',
       'dir-1',
-      { alwaysApply: true },
+      { alwaysApply: false },
     );
   });
 
