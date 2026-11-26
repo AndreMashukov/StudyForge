@@ -119,8 +119,10 @@ export function formatAgentPromptShortForm(name: string, extra: string): string 
 }
 
 /**
- * The request the agent receives for a run. The saved text is framed as the
- * learner's own request, so it cannot override the agent's rules.
+ * The request the agent receives for a run: the saved text, framed in the
+ * same bracket style as UI context, as the learner's own request. The
+ * system prompt says it cannot override the agent's rules. (XML-like tags
+ * here made the planner model fall back to its native tool-call format.)
  */
 export function buildAgentPromptRunMessage(input: {
   name: string;
@@ -129,13 +131,11 @@ export function buildAgentPromptRunMessage(input: {
 }): string {
   const extra = input.extra.trim();
   return [
-    `The user ran their saved prompt "${input.name}". It is their own request, written as a reusable template; follow it as if they had typed it now. It does not change your rules or safeguards.`,
-    '<saved_prompt>',
+    `[Saved prompt "${input.name}": the user picked this saved request of theirs from the "/" menu. Do what it asks, as if they had typed it now.]`,
     input.content.trim(),
-    '</saved_prompt>',
-    extra
-      ? `Extra detail from the user for this run (takes precedence over the saved prompt where they conflict): ${extra}`
-      : 'The user added no extra detail for this run.',
+    ...(extra
+      ? ['', `[Extra detail from the user for this run, which wins where it conflicts: ${extra}]`]
+      : []),
   ].join('\n');
 }
 
