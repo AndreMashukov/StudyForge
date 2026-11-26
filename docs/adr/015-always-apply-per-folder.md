@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-11-26).
+Superseded in part by [ADR 016](016-folder-default-prompts-cascade.md) (2026-11-26): always apply now carries down to subfolders, attached rules apply by default, and pickers no longer save. The removals in decision 4 and the migration in decision 5 still stand.
 
 ## Context
 

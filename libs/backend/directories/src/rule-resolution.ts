@@ -2,7 +2,8 @@ import {
   Rule,
   RuleApplicability,
   Directory,
-  alwaysApplyRuleIdsIn,
+  defaultRuleIdsIn,
+  ruleAppliesByDefault,
 } from '@shared-types';
 import { getRulesByIds } from './rule-crud';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
@@ -155,7 +156,12 @@ export async function resolveRulesForDirectory(
   userId: string,
   directoryId: string,
   operation?: RuleApplicability
-): Promise<{ rules: Rule[]; inheritanceMap: { [directoryId: string]: Rule[] } }> {
+): Promise<{
+  rules: Rule[];
+  inheritanceMap: { [directoryId: string]: Rule[] };
+  /** The directory's id, then its parent's, up to the root (for always apply). */
+  directoryChain: string[];
+}> {
   const hierarchy = await getDirectoryHierarchy(userId, directoryId);
   
   // Collect all rule IDs from current directory and ancestors
@@ -231,6 +237,7 @@ export async function resolveRulesForDirectory(
   return {
     rules: sortedRules,
     inheritanceMap,
+    directoryChain: allDirectories.map((dir) => dir.id).reverse(),
   };
 }
 
@@ -259,9 +266,12 @@ export async function resolveGenerationRulesForPrompt(
  * Canonical resolver for all generation flows.
  *
  * Modes:
- * - inherit: directory hierarchy only
- * - inherit-plus-explicit: inherited rules, then explicitly selected extras
+ * - inherit: the directory's default rules only
+ * - inherit-plus-explicit: the directory's default rules, then explicitly selected extras
  * - explicit-only: only explicitly selected rule IDs
+ *
+ * A directory's default rules are the rules attached to it or an ancestor
+ * that are not switched off there (always apply, ADR 016).
  */
 export async function resolveEffectiveRules({
   userId,
@@ -282,7 +292,9 @@ export async function resolveEffectiveRules({
     }
 
     const inherited = await resolveRulesForDirectory(userId, directoryId, operation);
-    inheritedRules = inherited.rules;
+    inheritedRules = inherited.rules.filter((rule) =>
+      ruleAppliesByDefault(rule, inherited.directoryChain),
+    );
     Object.assign(inheritanceMap, inherited.inheritanceMap);
   }
 
@@ -356,10 +368,14 @@ export async function getApplicableRules(
   directoryId: string,
   operation: RuleApplicability
 ): Promise<{ rules: Rule[]; defaultRuleIds: string[] }> {
-  const { rules } = await resolveRulesForDirectory(userId, directoryId, operation);
-  
-  // Always apply is per folder (ADR 015): only rules set for exactly this folder.
-  const defaultRuleIds = alwaysApplyRuleIdsIn(rules, directoryId);
+  const { rules, directoryChain } = await resolveRulesForDirectory(
+    userId,
+    directoryId,
+    operation,
+  );
+
+  // The folder's default rules (always apply, ADR 016).
+  const defaultRuleIds = defaultRuleIdsIn(rules, directoryChain);
 
   return {
     rules,

@@ -5,7 +5,7 @@ import type {
   Rule,
   RuleApplicability,
 } from '@shared-types';
-import { alwaysApplyRuleIdsIn } from '@shared-types';
+import { defaultRuleIdsIn } from '@shared-types';
 import { fetchDirectoryFromFirestore } from './directoryFirestore';
 import { fetchDirectoryTreeFromFirestore } from './directoryTreeIndex';
 import { fetchRulesFromFirestore } from './rulesFirestore';
@@ -54,6 +54,33 @@ function getDirectoryHierarchyFromTree(
   return { directory, ancestors };
 }
 
+/** The directory's id, then its parent's, up to the root (for always apply). */
+function directoryChainOf(hierarchy: IDirectoryHierarchy): string[] {
+  return [hierarchy.directory, ...[...hierarchy.ancestors].reverse()].map(
+    (directory) => directory.id,
+  );
+}
+
+/** Folder chain for always apply: the directory's id first, then its parents. */
+export async function fetchDirectoryChain(
+  userId: string,
+  directoryId: string,
+): Promise<string[]> {
+  const tree = await fetchDirectoryTreeFromFirestore(userId);
+  const hierarchy = getDirectoryHierarchyFromTree(tree, directoryId);
+  if (!hierarchy) {
+    throw new Error('Directory not found');
+  }
+  return directoryChainOf(hierarchy);
+}
+
+export interface IResolvedDirectoryRules {
+  rules: Rule[];
+  inheritanceMap: Record<string, Rule[]>;
+  /** Rules that apply by default in the directory (present with ancestors). */
+  defaultRuleIds?: string[];
+}
+
 function sortRulesByHierarchy(
   rules: Rule[],
   directories: Directory[],
@@ -86,7 +113,7 @@ function resolveRulesFromHierarchy(
   hierarchy: IDirectoryHierarchy,
   ruleById: Map<string, Rule>,
   operation?: RuleApplicability,
-): { rules: Rule[]; inheritanceMap: Record<string, Rule[]> } {
+): IResolvedDirectoryRules {
   const allDirectories = [...hierarchy.ancestors, hierarchy.directory];
   const ruleIdsByDirectory: Record<string, string[]> = {};
   const allRuleIds = new Set<string>();
@@ -111,9 +138,11 @@ function resolveRulesFromHierarchy(
     inheritanceMap[dir.id] = filteredRules.filter((rule) => dirRuleIds.includes(rule.id));
   }
 
+  const rules = sortRulesByHierarchy(filteredRules, allDirectories, ruleIdsByDirectory);
   return {
-    rules: sortRulesByHierarchy(filteredRules, allDirectories, ruleIdsByDirectory),
+    rules,
     inheritanceMap,
+    defaultRuleIds: defaultRuleIdsIn(rules, directoryChainOf(hierarchy)),
   };
 }
 
@@ -126,7 +155,7 @@ export async function resolveDirectoryRulesClient(
   userId: string,
   directoryId: string,
   options: IResolveDirectoryRulesOptions = {},
-): Promise<{ rules: Rule[]; inheritanceMap: Record<string, Rule[]> }> {
+): Promise<IResolvedDirectoryRules> {
   const includeAncestors = options.includeAncestors !== false;
   const operation = options.operation;
 
@@ -172,13 +201,11 @@ export async function resolveApplicableRulesClient(
   directoryId: string,
   operation: RuleApplicability,
 ): Promise<{ rules: Rule[]; defaultRuleIds: string[] }> {
-  const { rules } = await resolveDirectoryRulesClient(userId, directoryId, {
-    includeAncestors: true,
-    operation,
-  });
+  const { rules, defaultRuleIds } = await resolveDirectoryRulesClient(
+    userId,
+    directoryId,
+    { includeAncestors: true, operation },
+  );
 
-  return {
-    rules,
-    defaultRuleIds: alwaysApplyRuleIdsIn(rules, directoryId),
-  };
+  return { rules, defaultRuleIds: defaultRuleIds ?? [] };
 }

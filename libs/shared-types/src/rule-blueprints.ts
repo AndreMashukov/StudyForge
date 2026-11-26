@@ -191,6 +191,9 @@ export interface ICreateRuleFromBlueprintRequest {
   tags?: string[];
   applicableTo?: RuleApplicability[];
   directoryId?: string;
-  /** With `directoryId`: also always apply the new rule in that folder. */
+  /**
+   * With `directoryId`: false attaches the rule switched off by default in
+   * that folder. Attached rules apply by default otherwise (ADR 016).
+   */
   alwaysApply?: boolean;
 }

@@ -9,7 +9,7 @@ import {
   useSetRuleAlwaysApplyMutation,
 } from '../../../store/api/Rules';
 import { useGetDirectoryQuery } from '../../../store/api/Directory/DirectoryApi';
-import { Rule, ruleAlwaysAppliesIn } from '@shared-types';
+import { Rule } from '@shared-types';
 import { useBulkDetachDirectoryRules } from './hooks/useBulkDetachDirectoryRules';
 
 interface DirectoryRulesPageProviderProps {
@@ -66,6 +66,10 @@ export const DirectoryRulesPageProvider = ({
     rulesData?.inheritanceMap || {};
 
   const allRules = rulesData?.rules || [];
+  const defaultRuleIds = useMemo(
+    () => rulesData?.defaultRuleIds ?? [],
+    [rulesData?.defaultRuleIds],
+  );
 
   const loading = directoryLoading || rulesLoading;
   const error = directoryError || rulesError 
@@ -103,7 +107,8 @@ export const DirectoryRulesPageProvider = ({
     [navigate, directoryId]
   );
 
-  // Always apply is per folder (ADR 015): this toggles it for this folder only.
+  // Switches a rule on or off by default in this folder; subfolders follow
+  // unless they made their own choice (always apply, ADR 016).
   const handleToggleAlwaysApply = useCallback(
     async (rule: Rule) => {
       if (!directoryId) return;
@@ -111,13 +116,13 @@ export const DirectoryRulesPageProvider = ({
         await setRuleAlwaysApply({
           ruleId: rule.id,
           directoryId,
-          alwaysApply: !ruleAlwaysAppliesIn(rule, directoryId),
+          alwaysApply: !defaultRuleIds.includes(rule.id),
         }).unwrap();
       } catch {
         // Error is shown via the global errorToastMiddleware toast
       }
     },
-    [directoryId, setRuleAlwaysApply]
+    [defaultRuleIds, directoryId, setRuleAlwaysApply]
   );
 
   const handleToggleCascadeView = useCallback(() => {
@@ -140,6 +145,7 @@ export const DirectoryRulesPageProvider = ({
       directRules,
       inheritedRules,
       allRules,
+      defaultRuleIds,
       loading,
       error,
       isAssignModalOpen,

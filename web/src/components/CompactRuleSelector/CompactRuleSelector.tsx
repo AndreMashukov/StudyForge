@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { ruleAlwaysAppliesIn } from "@shared-types";
-import { ChevronDown, RotateCcw, Tag } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Pin, RotateCcw, Tag } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import { Checkbox } from "../ui/Checkbox";
@@ -13,10 +12,9 @@ import { VirtualizedList } from "../VirtualizedList";
 import { ICompactRuleSelector } from "./ICompactRuleSelector";
 
 /**
- * Compact Rule Selector Component
- *
- * A streamlined version of RuleSelector designed for inline use in forms
- * Provides a collapsible checklist of applicable rules
+ * Prompt picker for one creation. It opens with the folder's default prompts
+ * ticked (always apply, ADR 016). Ticking and unticking only changes this
+ * creation; "Save as default" stores the current choice for the folder.
  */
 export const CompactRuleSelector = ({
   directoryId,
@@ -32,7 +30,8 @@ export const CompactRuleSelector = ({
     directoryId,
     operation,
   });
-  const [setRuleAlwaysApply, { isLoading: isUpdating }] = useSetRuleAlwaysApplyMutation();
+  const [setRuleAlwaysApply] = useSetRuleAlwaysApplyMutation();
+  const [isUpdating, setIsUpdating] = useState(false);
   const initializedKeyRef = useRef<string | null>(null);
   const selectionKey = `${directoryId}:${operation}`;
 
@@ -53,7 +52,7 @@ export const CompactRuleSelector = ({
     };
   }, [isUpdating]);
 
-  // Initialize with always-apply rules once per directory/operation
+  // Start from the folder's default prompts once per directory/operation
   useEffect(() => {
     if (!isSuccess || initializedKeyRef.current === selectionKey) {
       return;
@@ -70,33 +69,41 @@ export const CompactRuleSelector = ({
     onSelectionChange,
   ]);
 
-  const handleToggle = async (ruleId: string) => {
+  const handleToggle = (ruleId: string) => {
     if (isRulesInteractionDisabled) {
       return;
     }
-
-    // Ticking a prompt here makes it always apply in this folder only, and
-    // unticking stops it (ADR 015). Other folders keep their own setting.
-    const rule = rules.find((r) => r.id === ruleId);
-    const previousSelection = selectedRuleIds;
-    const selecting = !selectedRuleIds.includes(ruleId);
-
+    // One-off: this changes only what is being created now.
     onSelectionChange(
-      selecting
-        ? [...selectedRuleIds, ruleId]
-        : selectedRuleIds.filter((id) => id !== ruleId),
+      selectedRuleIds.includes(ruleId)
+        ? selectedRuleIds.filter((id) => id !== ruleId)
+        : [...selectedRuleIds, ruleId],
     );
-    if (!rule || ruleAlwaysAppliesIn(rule, directoryId) === selecting) {
+  };
+
+  const defaultRuleIdSet = useMemo(() => new Set(defaultRuleIds), [defaultRuleIds]);
+  const changedRules = rules.filter(
+    (rule) => selectedRuleIds.includes(rule.id) !== defaultRuleIdSet.has(rule.id),
+  );
+
+  // Stores the current choice as this folder's defaults (subfolders follow).
+  const handleSaveAsDefault = async () => {
+    if (isRulesInteractionDisabled || changedRules.length === 0) {
       return;
     }
+    setIsUpdating(true);
     try {
-      await setRuleAlwaysApply({
-        ruleId,
-        directoryId,
-        alwaysApply: selecting,
-      }).unwrap();
+      for (const rule of changedRules) {
+        await setRuleAlwaysApply({
+          ruleId: rule.id,
+          directoryId,
+          alwaysApply: selectedRuleIds.includes(rule.id),
+        }).unwrap();
+      }
     } catch {
-      onSelectionChange(previousSelection);
+      // Error is shown via the global errorToastMiddleware toast
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -126,19 +133,37 @@ export const CompactRuleSelector = ({
           <Tag size={14} />
           {label} ({selectedRuleIds.length})
         </div>
-        {showResetButton && (rules.length > 0 || (isLoading && !data)) && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleReset}
-            disabled={isRulesInteractionDisabled || rules.length === 0}
-            className="h-auto p-1 text-xs"
-          >
-            <RotateCcw size={12} className="mr-1" />
-            Reset
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {changedRules.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void handleSaveAsDefault();
+              }}
+              disabled={isRulesInteractionDisabled}
+              title="Use this choice by default in this folder and its subfolders"
+              className="h-auto p-1 text-xs"
+            >
+              <Pin size={12} className="mr-1" />
+              Save as default
+            </Button>
+          )}
+          {showResetButton && (rules.length > 0 || (isLoading && !data)) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              disabled={isRulesInteractionDisabled || rules.length === 0}
+              className="h-auto p-1 text-xs"
+            >
+              <RotateCcw size={12} className="mr-1" />
+              Reset
+            </Button>
+          )}
+        </div>
       </div>
 
       <details className="group border rounded-md">
@@ -164,18 +189,16 @@ export const CompactRuleSelector = ({
               renderItem={(rule) => (
                 <Checkbox
                   checked={selectedRuleIds.includes(rule.id)}
-                  onChange={() => {
-                    void handleToggle(rule.id);
-                  }}
+                  onChange={() => handleToggle(rule.id)}
                   disabled={isRulesInteractionDisabled}
                   className="flex w-full items-start gap-2 p-2 rounded-md hover:bg-foreground/[0.07] transition-colors"
                   label={
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium">{rule.name}</span>
-                        {ruleAlwaysAppliesIn(rule, directoryId) && (
+                        {defaultRuleIdSet.has(rule.id) && (
                           <Badge variant="outline" className="text-xs">
-                            Always apply
+                            Default
                           </Badge>
                         )}
                       </div>

@@ -196,17 +196,17 @@ Which operation types a rule may apply to (e.g. `quiz`, `diagram_quiz`, `flashca
 _Avoid_: rule type, rule category, follow-up rule, chat rule
 
 **Rule resolution mode**:
-How explicitly selected rules combine with inherited directory rules: `inherit`, `inherit-plus-explicit`, or `explicit-only`.
+How explicitly selected rules combine with the directory's default rules (see **always apply**): `inherit` (defaults only), `inherit-plus-explicit` (defaults, then the selected ones), or `explicit-only` (only the selected ones).
 _Avoid_: rule merge mode, inheritance setting
 
 **Always apply**:
-Per-folder setting that makes a rule start ticked in the prompt pickers opened in that folder (stored on the rule as `alwaysApplyDirectoryIds`). It covers exactly the folders listed: subfolders that inherit the rule are not covered and keep their own setting. Ticking a rule in a picker turns it on for that picker's folder; unticking turns it off there. The folder's Prompts tab toggles it too, for attached and inherited rules. It only decides preselection; generation never reads it. Folders listed where the rule no longer shows up are ignored. Replaced the global `isDefault` flag; see [ADR 015](docs/adr/015-always-apply-per-folder.md).
-_Avoid_: default rule, auto-select rule, global always apply (prefer **always apply** in product copy)
+Whether a rule applies by default in a folder. A rule attached to a folder or an ancestor applies by default there. Any folder can switch it off or back on, and its subfolders follow until one makes its own choice (stored on the rule as `alwaysApplyDirectoryIds` and `alwaysApplyOffDirectoryIds`). A folder's **default rules** are the ones that apply by default: they start ticked in the prompt pickers, and they are what generation applies when nothing was picked (mobile one-tap quiz and flashcards, documents the workspace agent creates, photo and scan captures). Ticking in a picker is one-off and stores nothing; "Save as default" in the picker or the toggle on the folder's Prompts tab changes the defaults. Pasted text, links and files are never rewritten by rules. See [ADR 016](docs/adr/016-folder-default-prompts-cascade.md).
+_Avoid_: default rule (for one rule; say the rule is on or off by default), auto-select rule, global always apply
 
 ## Learning & chat
 
 **Workspace agent**:
-Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt**, which applies every rule the target directory inherits (generation does not read **always apply**). Retrieves **Platform agent knowledge** into the planner prompt; searches **User knowledge** with `search_knowledge`.
+Tool-capable AgentPanel over the user's full library (`scope: workspace`). Runs a plan-execute LangGraph: planner, executor, replan loop, then a final reply. Creating a document enqueues **documentFromPrompt**, which applies the target directory's default rules (see **always apply**). Retrieves **Platform agent knowledge** into the planner prompt; searches **User knowledge** with `search_knowledge`.
 _Avoid_: global agent (alone), workspace chat, ADK workspace agent
 
 **Directory-scoped agent**:
@@ -316,7 +316,7 @@ _Avoid_: migration order, pre/post hook
 - A **Directory** contains **Documents** and **Artifacts**
 - **Artifacts** are generated from one or more **Documents** in the same directory
 - **Rules** attach to **Directories** and inherit down the tree
-- A **Rule** may **always apply** in specific **Directories**; unlike attachment, that does not inherit down the tree
+- A **Rule** attached to a **Directory** **always applies** there and in its subdirectories, unless a directory on the way switched it off
 - A **Generation job** drives async completion of every **Pending record** created by AI generation
 - A **LLM setup** has one **generation route** per **generation kind**
 - A **generation route** points to one **Provider connection** and declares a required **LLM modality**
