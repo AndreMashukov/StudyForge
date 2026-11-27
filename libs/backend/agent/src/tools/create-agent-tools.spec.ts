@@ -1548,3 +1548,55 @@ describe('starter course tools', () => {
     expect(context.starterCourse?.directoryId).toBe('course-dir');
   });
 });
+
+describe('createAgentToolDefinitions list_documents', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('exposes generationStatus, and generationError for failed documents', async () => {
+    const where = vi.fn().mockReturnValue({
+      get: vi.fn().mockResolvedValue({
+        docs: [
+          {
+            id: 'doc-ok',
+            data: () => ({
+              title: 'Mitosis basics',
+              directoryId: 'dir-1',
+              generationStatus: 'completed',
+            }),
+          },
+          {
+            id: 'doc-failed',
+            data: () => ({
+              title: 'Quiz recap',
+              directoryId: 'dir-1',
+              generationStatus: 'failed',
+              generationError: 'Empty response from MiniMax API',
+            }),
+          },
+          {
+            id: 'doc-legacy',
+            data: () => ({ title: 'Old notes', directoryId: 'dir-1' }),
+          },
+        ],
+      }),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Firestore query mock boundary
+    vi.mocked(FirestorePaths.documents).mockReturnValue({ where } as any);
+    const tools = createAgentToolDefinitions(createContext());
+
+    const listed = (await executeAgentTool(tools, 'list_documents', {
+      directoryId: 'dir-1',
+    })) as Array<Record<string, unknown>>;
+
+    expect(listed[0]).toMatchObject({ id: 'doc-ok', generationStatus: 'completed' });
+    expect(listed[0]).not.toHaveProperty('generationError');
+    expect(listed[1]).toMatchObject({
+      id: 'doc-failed',
+      generationStatus: 'failed',
+      generationError: 'Empty response from MiniMax API',
+    });
+    expect(listed[2]).not.toHaveProperty('generationStatus');
+  });
+});
