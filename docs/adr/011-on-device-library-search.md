@@ -10,7 +10,7 @@ Learners need to find directories, documents and artifacts by name, and document
 
 ## Decision
 
-1. **Functions maintain one search record per item** at `users/{uid}/searchRecords/{itemType}_{sourceId}`. Eight `onDocumentWritten` triggers (directories, documents and the six artifact collections) rebuild the record from the source and write only when its content hash changes. Document records carry the body as plain text, capped at 100,000 characters. Clients never write these records.
+1. **Functions maintain one search record per item** (chats too since [ADR 019](019-chats-in-library-search.md)) at `users/{uid}/searchRecords/{itemType}_{sourceId}`. Eight `onDocumentWritten` triggers (directories, documents and the six artifact collections) rebuild the record from the source and write only when its content hash changes. Document records carry the body as plain text, capped at 100,000 characters. Clients never write these records.
 2. **Records are built from the canonical collections**, not from `directories/{id}/items`: those rows are best-effort and drift.
 3. **Devices sync records and match locally.** Web and mobile share one engine in `libs/client-data/src/librarySearch` (MiniSearch plus our tokenizer and ranking). A device pulls records changed since its cursor (`updatedAt`), keeps them in IndexedDB (web) or MMKV (mobile), and builds the index in memory at start.
 4. **Deletes are tombstones** (`deleted: true`, 30-day TTL). A device that has not synced for 25 days, or that holds another schema version, syncs from scratch.

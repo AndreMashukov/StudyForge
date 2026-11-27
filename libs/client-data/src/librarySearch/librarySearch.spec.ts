@@ -194,6 +194,105 @@ describe('search engine', () => {
   });
 });
 
+describe('chats in search', () => {
+  const NOW = Date.UTC(2026, 10, 27);
+  const DAY = 24 * 60 * 60 * 1000;
+
+  const CHATS: ILocalSearchRecord[] = [
+    record('chat', 't-bio', 'Explain cell respiration', {
+      directoryId: 'cells',
+      text: 'Explain cell respiration The mitochondria make ATP through oxidative phosphorylation.',
+      lastActivityAt: NOW - DAY,
+    }),
+    record('chat', 't-home', 'Plan my week', {
+      text: 'Plan my week Remember to revise phosphorylation on Friday.',
+      lastActivityAt: NOW - 2 * DAY,
+    }),
+  ];
+
+  async function chatEngine(
+    records: ILocalSearchRecord[],
+    maxIndexedTextChars?: number,
+  ) {
+    const engine = createLibrarySearchEngine({
+      now: () => NOW,
+      maxIndexedTextChars,
+    });
+    await engine.setRecords(records);
+    return engine;
+  }
+
+  it('puts chats in their own group with a snippet and last activity', async () => {
+    const engine = await chatEngine([...LIBRARY, ...CHATS]);
+    const results = engine.search('phosphorylation');
+    expect(results.documents).toEqual([]);
+    expect(results.chats.map((hit) => hit.id).sort()).toEqual([
+      't-bio',
+      't-home',
+    ]);
+    const bio = results.chats.find((hit) => hit.id === 't-bio');
+    expect(bio?.lastActivityAt).toBe(NOW - DAY);
+    expect(
+      bio?.snippet?.filter((segment) => segment.highlighted).map((s) => s.text),
+    ).toEqual(['phosphorylation']);
+  });
+
+  it('scopes chats by home folder and leaves out chats without one', async () => {
+    const engine = await chatEngine([...LIBRARY, ...CHATS]);
+    expect(
+      engine
+        .search('phosphorylation', { directoryId: 'bio' })
+        .chats.map((hit) => hit.id),
+    ).toEqual(['t-bio']);
+    expect(
+      engine.search('phosphorylation', { directoryId: 'chem' }).chats,
+    ).toEqual([]);
+  });
+
+  it('prefers the more recent chat when matches are equal', async () => {
+    const engine = await chatEngine([
+      record('chat', 'old', 'Glucose', {
+        text: 'Glucose',
+        lastActivityAt: NOW - 200 * DAY,
+      }),
+      record('chat', 'new', 'Glucose', {
+        text: 'Glucose',
+        lastActivityAt: NOW - DAY,
+      }),
+    ]);
+    expect(engine.search('glucose').chats.map((hit) => hit.id)).toEqual([
+      'new',
+      'old',
+    ]);
+  });
+
+  it('shows at most ten chats', async () => {
+    const many = Array.from({ length: 15 }, (_, index) =>
+      record('chat', `c${index}`, `Enzymes ${index}`, {
+        lastActivityAt: NOW - index * DAY,
+      }),
+    );
+    const engine = await chatEngine(many);
+    expect(engine.search('enzymes').chats).toHaveLength(10);
+  });
+
+  it('drops chat text before document text when over budget', async () => {
+    const doc = record('document', 'd', 'Notes', { text: 'a'.repeat(60) });
+    const chat = record('chat', 'c', 'Chat', {
+      text: 'zymogen ' + 'b'.repeat(60),
+    });
+    const engine = await chatEngine([doc, chat], 100);
+    expect(engine.isBodyTextIndexed()).toBe(true);
+    expect(engine.isChatTextIndexed()).toBe(false);
+    expect(engine.search('zymogen').chats).toEqual([]);
+    expect(engine.search('chat').chats.map((hit) => hit.id)).toEqual(['c']);
+
+    await engine.applyChanges([], ['document_d']);
+    expect(engine.isChatTextIndexed()).toBe(true);
+    expect(engine.search('zymogen').chats.map((hit) => hit.id)).toEqual(['c']);
+  });
+});
+
 describe('search snippet', () => {
   it('adds ellipses when the passage is cut', () => {
     const text = `${'word '.repeat(40)}mitochondria ${'tail '.repeat(40)}`;

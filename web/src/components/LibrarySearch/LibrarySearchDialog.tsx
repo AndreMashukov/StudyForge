@@ -1,6 +1,6 @@
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles } from 'lucide-react';
+import { MessageSquare, Search, Sparkles } from 'lucide-react';
 import type {
   ILibrarySearchHit,
   ILibrarySearchResults,
@@ -8,7 +8,10 @@ import type {
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/Dialog';
 import { cn } from '../../lib/utils';
 import { useAppDispatch } from '../../hooks/redux';
-import { setAgentLauncherDraft } from '../../store/slices/uiSlice';
+import {
+  setAgentLauncherDraft,
+  setAgentLauncherThread,
+} from '../../store/slices/uiSlice';
 import { buildLibraryItemUrl } from '../../utils/libraryItemUrl';
 import type { ILibrarySearchDialog } from './ILibrarySearch';
 import { LibrarySearchResultRow } from './LibrarySearchResultRow';
@@ -17,7 +20,11 @@ import { useLibrarySearchClient } from './hooks/useLibrarySearchClient';
 const LISTBOX_ID = 'library-search-results';
 const ASK_ROW_ID = 'library-search-ask';
 
-const SECTIONS: Array<{ key: keyof ILibrarySearchResults; label: string }> = [
+/** Library sections. Chats follow them, set apart by a divider. */
+const SECTIONS: Array<{
+  key: Exclude<keyof ILibrarySearchResults, 'chats'>;
+  label: string;
+}> = [
   { key: 'directories', label: 'Directories' },
   { key: 'documents', label: 'Documents' },
   { key: 'artifacts', label: 'Artifacts' },
@@ -53,14 +60,22 @@ const LibrarySearchDialogBody: React.FC<DialogBodyProps> = ({
     [client, deferredQuery, directoryId, status.version, status.ready],
   );
 
-  const hits = SECTIONS.flatMap((section) => results[section.key]);
+  const hits = [
+    ...SECTIONS.flatMap((section) => results[section.key]),
+    ...results.chats,
+  ];
   const rowIds = [...hits.map(rowId), ...(trimmedQuery ? [ASK_ROW_ID] : [])];
   const resolvedActiveId =
     activeId && rowIds.includes(activeId) ? activeId : (rowIds[0] ?? null);
 
   const handleOpenHit = (hit: ILibrarySearchHit) => {
     onOpenChange(false);
-    navigate(buildLibraryItemUrl(hit));
+    const { itemType } = hit;
+    if (itemType === 'chat') {
+      dispatch(setAgentLauncherThread({ threadId: hit.id }));
+      return;
+    }
+    navigate(buildLibraryItemUrl({ ...hit, itemType }));
   };
 
   const handleAsk = () => {
@@ -102,7 +117,7 @@ const LibrarySearchDialogBody: React.FC<DialogBodyProps> = ({
         : 'Search needs a connection the first time. Reconnect and try again.';
     }
     if (!trimmedQuery) {
-      return 'Search names of directories, documents and artifacts, and the text of your documents.';
+      return 'Search names of directories, documents and artifacts, the text of your documents, and your chats.';
     }
     if (hits.length === 0) {
       return directoryId
@@ -176,6 +191,32 @@ const LibrarySearchDialogBody: React.FC<DialogBodyProps> = ({
           ) : null,
         )}
 
+        {results.chats.length > 0 ? (
+          <div
+            role="group"
+            aria-label="Chats"
+            className={cn(
+              SECTIONS.some((section) => results[section.key].length > 0) &&
+                'mt-2 border-t border-border pt-2',
+            )}
+          >
+            <div className="flex items-center gap-1.5 px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <MessageSquare size={12} aria-hidden="true" />
+              Chats
+            </div>
+            {results.chats.map((hit) => (
+              <LibrarySearchResultRow
+                key={rowId(hit)}
+                id={rowId(hit)}
+                hit={hit}
+                active={rowId(hit) === resolvedActiveId}
+                onSelect={() => handleOpenHit(hit)}
+                onHover={() => setActiveId(rowId(hit))}
+              />
+            ))}
+          </div>
+        ) : null}
+
         {notice ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
             {notice}
@@ -186,6 +227,11 @@ const LibrarySearchDialogBody: React.FC<DialogBodyProps> = ({
           <p className="px-3 py-2 text-xs text-muted-foreground">
             Your library is too large to search inside documents on this
             device. Names are still searched.
+          </p>
+        ) : status.ready && !status.chatTextIndexed && trimmedQuery ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            Your library is too large to search inside chats on this device.
+            Chat titles are still searched.
           </p>
         ) : null}
 
@@ -225,8 +271,8 @@ export const LibrarySearchDialog: React.FC<ILibrarySearchDialog> = ({
     <DialogContent className="max-w-xl gap-0 p-0" aria-describedby={undefined}>
       <DialogTitle className="sr-only">Search your library</DialogTitle>
       <DialogDescription className="sr-only">
-        Find directories, documents and artifacts by name, and documents by
-        their text.
+        Find directories, documents and artifacts by name, documents by their
+        text, and chats by their title and messages.
       </DialogDescription>
       {open ? <LibrarySearchDialogBody {...body} /> : null}
     </DialogContent>

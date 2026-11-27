@@ -17,6 +17,12 @@ import type {
  */
 export const SEARCH_TEXT_MAX_CHARS = 100_000;
 
+/**
+ * Chat message text kept on a search record. Smaller than a document's so
+ * chats rarely push a device past its on-device text budget.
+ */
+export const CHAT_SEARCH_TEXT_MAX_CHARS = 20_000;
+
 export type SearchSourceData = Record<string, unknown>;
 
 export interface ISearchRecordText {
@@ -29,7 +35,7 @@ export interface ISearchRecordSource {
   itemType: LibrarySearchItemType;
   sourceId: string;
   raw: SearchSourceData;
-  /** Extracted body text; documents only. */
+  /** Extracted body text (documents) or joined message text (chats). */
   text?: ISearchRecordText;
 }
 
@@ -110,6 +116,44 @@ export function capSearchText(text: string): {
   return { text: text.slice(0, end).trimEnd(), truncated: true };
 }
 
+/**
+ * Joins chat messages (given newest first) into one search text, oldest
+ * first, keeping the newest text when the whole chat exceeds the cap. Never
+ * starts on the second half of a surrogate pair.
+ */
+export function joinChatSearchText(
+  messagesNewestFirst: string[],
+  maxChars: number = CHAT_SEARCH_TEXT_MAX_CHARS,
+): { text: string; truncated: boolean } {
+  const kept: string[] = [];
+  let length = 0;
+  let truncated = false;
+
+  for (const message of messagesNewestFirst) {
+    const plain = markdownToSearchText(message);
+    if (plain.length === 0) continue;
+    const separator = kept.length > 0 ? 1 : 0;
+    const room = maxChars - length - separator;
+    if (room <= 0) {
+      truncated = true;
+      break;
+    }
+    if (plain.length > room) {
+      let tail = plain.slice(plain.length - room);
+      const first = tail.charCodeAt(0);
+      if (first >= 0xdc00 && first <= 0xdfff) tail = tail.slice(1);
+      tail = tail.trimStart();
+      if (tail.length > 0) kept.push(tail);
+      truncated = true;
+      break;
+    }
+    kept.push(plain);
+    length += plain.length + separator;
+  }
+
+  return { text: kept.reverse().join(' '), truncated };
+}
+
 function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0
     ? value
@@ -148,8 +192,10 @@ export function isDocumentTextExpected(raw: SearchSourceData): boolean {
   return status === undefined || status === 'completed';
 }
 
-const SEARCHABLE_FIELDS: Record<'directory' | 'document' | 'artifact', string[]> =
-  {
+const SEARCHABLE_FIELDS: Record<
+  'directory' | 'document' | 'artifact' | 'chat',
+  string[]
+> = {
     directory: ['name', 'parentId'],
     document: [
       'title',
@@ -165,10 +211,17 @@ const SEARCHABLE_FIELDS: Record<'directory' | 'document' | 'artifact', string[]>
       'updatedAt',
     ],
     artifact: ['title', 'directoryId', 'generationStatus'],
+    // lastMessageAt moves on every message write, so each new message is
+    // indexed. activeTurnId / activeTurnStartedAt changes are ignored.
+    chat: ['title', 'preview', 'homeDirectoryId', 'lastMessageAt'],
   };
 
 function searchableFieldsFor(itemType: LibrarySearchItemType): string[] {
-  if (itemType === 'directory' || itemType === 'document') {
+  if (
+    itemType === 'directory' ||
+    itemType === 'document' ||
+    itemType === 'chat'
+  ) {
     return SEARCHABLE_FIELDS[itemType];
   }
   return SEARCHABLE_FIELDS.artifact;
@@ -225,6 +278,7 @@ function computeContentHash(fields: SearchRecordFields): string {
         fields.text ?? null,
         fields.textTruncated ?? false,
         fields.generationStatus ?? null,
+        fields.lastActivityAt ?? null,
         fields.deleted,
       ]),
     )
@@ -252,7 +306,30 @@ function finalize(fields: SearchRecordFields): LibrarySearchRecord {
     record.generationStatus = fields.generationStatus;
   }
   if (fields.sourceMd5 !== undefined) record.sourceMd5 = fields.sourceMd5;
+  if (fields.lastActivityAt !== undefined) {
+    record.lastActivityAt = fields.lastActivityAt;
+  }
   return record;
+}
+
+function hasToMillis(value: unknown): value is { toMillis: () => number } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'toMillis' in value &&
+    typeof value.toMillis === 'function'
+  );
+}
+
+/** Firestore Timestamp, ISO string or millis; anything else is unknown. */
+function readMillis(value: unknown): number | undefined {
+  let millis: number | undefined;
+  if (hasToMillis(value)) millis = value.toMillis();
+  else if (typeof value === 'number') millis = value;
+  else if (typeof value === 'string') millis = Date.parse(value);
+  return millis !== undefined && Number.isFinite(millis) && millis >= 0
+    ? Math.trunc(millis)
+    : undefined;
 }
 
 export function buildSearchRecord(
@@ -267,6 +344,24 @@ export function buildSearchRecord(
       sourceId,
       directoryId: readNonEmptyString(raw.parentId) ?? null,
       title: readNonEmptyString(raw.name) ?? 'Untitled',
+      deleted: false,
+      schemaVersion,
+    });
+  }
+
+  if (itemType === 'chat') {
+    return finalize({
+      itemType,
+      sourceId,
+      directoryId: readNonEmptyString(raw.homeDirectoryId) ?? null,
+      title: readNonEmptyString(raw.title) ?? 'Untitled chat',
+      description: readNonEmptyString(raw.preview),
+      text: text && text.text.length > 0 ? text.text : undefined,
+      textTruncated: text?.truncated ? true : undefined,
+      lastActivityAt:
+        readMillis(raw.lastMessageAt) ??
+        readMillis(raw.updatedAt) ??
+        readMillis(raw.createdAt),
       deleted: false,
       schemaVersion,
     });

@@ -73,10 +73,11 @@ function SearchResults({ userId, directoryId }: ISearchScreen & { userId: string
     // status.version changes whenever the same query could return something else.
     [client, debounced, scopeId, status.version, status.ready],
   );
-  const total =
+  const libraryTotal =
     results.directories.length +
     results.documents.length +
     results.artifacts.length;
+  const total = libraryTotal + results.chats.length;
   const directoryTitle = directoryId
     ? (client.getDirectoryTitle(directoryId) ?? 'this directory')
     : null;
@@ -87,20 +88,49 @@ function SearchResults({ userId, directoryId }: ISearchScreen & { userId: string
     setRefreshing(false);
   };
 
-  const row = (hit: ILibrarySearchHit) => (
-    <View key={`${hit.itemType}:${hit.id}`}>
-      <ItemRow
-        icon={itemIcon(hit.itemType)}
-        title={hit.title}
-        subtitle={[itemKindLabel(hit.itemType), hit.path]
-          .filter(Boolean)
-          .join(' · ')}
-        badge={statusBadge(hit.generationStatus)}
-        onPress={() => openLibraryItem(router, hit)}
-      />
-      {hit.snippet ? <Snippet segments={hit.snippet} /> : null}
-    </View>
-  );
+  const handleOpenChat = (hit: ILibrarySearchHit) => {
+    const folderTitle = hit.directoryId
+      ? client.getDirectoryTitle(hit.directoryId)
+      : undefined;
+    router.push({
+      pathname: '/chat/[threadId]',
+      params: {
+        threadId: hit.id,
+        title: hit.title,
+        ...(hit.directoryId ? { directoryId: hit.directoryId } : {}),
+        ...(folderTitle ? { label: folderTitle } : {}),
+      },
+    });
+  };
+
+  const row = (hit: ILibrarySearchHit) => {
+    const { itemType } = hit;
+    const isChat = itemType === 'chat';
+    return (
+      <View key={`${itemType}:${hit.id}`}>
+        <ItemRow
+          icon={isChat ? 'chat-bubble-outline' : itemIcon(itemType)}
+          title={hit.title}
+          subtitle={[
+            isChat ? 'Chat' : itemKindLabel(itemType),
+            hit.path,
+            hit.lastActivityAt !== undefined
+              ? new Date(hit.lastActivityAt).toLocaleDateString()
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          badge={isChat ? undefined : statusBadge(hit.generationStatus)}
+          onPress={() =>
+            isChat
+              ? handleOpenChat(hit)
+              : openLibraryItem(router, { ...hit, itemType })
+          }
+        />
+        {hit.snippet ? <Snippet segments={hit.snippet} /> : null}
+      </View>
+    );
+  };
 
   const notice = (() => {
     if (!status.ready) return 'Preparing search…';
@@ -110,7 +140,7 @@ function SearchResults({ userId, directoryId }: ISearchScreen & { userId: string
         : 'Search needs a connection the first time. Reconnect and pull down to retry.';
     }
     if (!trimmed) {
-      return 'Search names of directories, documents and artifacts, and the text of your documents.';
+      return 'Search names of directories, documents and artifacts, the text of your documents, and your chats.';
     }
     if (!total) {
       return scopeId
@@ -205,6 +235,25 @@ function SearchResults({ userId, directoryId }: ISearchScreen & { userId: string
             {results.artifacts.map(row)}
           </>
         ) : null}
+        {results.chats.length ? (
+          <View
+            className={
+              libraryTotal ? 'mt-3 border-t border-border pt-1' : undefined
+            }
+          >
+            <View className="mb-1 mt-4 flex-row items-center gap-1.5">
+              <MaterialIcons
+                name="chat-bubble-outline"
+                size={14}
+                color={mobileUiColors.mutedForeground}
+              />
+              <Text variant="label" tone="muted">
+                Chats
+              </Text>
+            </View>
+            {results.chats.map(row)}
+          </View>
+        ) : null}
         {notice ? (
           <Text tone="muted" className="mt-6 text-center">
             {notice}
@@ -214,6 +263,11 @@ function SearchResults({ userId, directoryId }: ISearchScreen & { userId: string
           <Text variant="caption" tone="muted" className="mt-3">
             Your library is too large to search inside documents on this
             device. Names are still searched.
+          </Text>
+        ) : status.ready && !status.chatTextIndexed && trimmed ? (
+          <Text variant="caption" tone="muted" className="mt-3">
+            Your library is too large to search inside chats on this device.
+            Chat titles are still searched.
           </Text>
         ) : null}
         {trimmed ? (
@@ -245,8 +299,9 @@ function SearchResults({ userId, directoryId }: ISearchScreen & { userId: string
 }
 
 /**
- * Library search: names of directories, documents and artifacts plus document
- * text, matched on the device, so it also works offline once synced.
+ * Library search: names of directories, documents and artifacts, document
+ * text, and chats (title and messages, shown apart below a divider), matched
+ * on the device, so it also works offline once synced.
  */
 export function SearchScreen({ directoryId }: ISearchScreen) {
   const { user } = useAuthUser();

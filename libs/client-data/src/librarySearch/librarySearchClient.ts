@@ -27,6 +27,8 @@ export interface ILibrarySearchStatus {
   hasSynced: boolean;
   /** False when the library is too large to search document text here. */
   bodyTextIndexed: boolean;
+  /** False when chat message text was left out to fit the device budget. */
+  chatTextIndexed: boolean;
   /** Bumps whenever results for the same query could differ. */
   version: number;
 }
@@ -63,7 +65,7 @@ export function createLibrarySearchClient(
   const { userId, store } = options;
   const fetchChanges = options.fetchChanges ?? fetchSearchRecordChanges;
   const now = options.now ?? Date.now;
-  const engine = createLibrarySearchEngine();
+  const engine = createLibrarySearchEngine({ now });
   const listeners = new Set<() => void>();
 
   let meta: ILibrarySearchSyncMeta | null = null;
@@ -74,6 +76,7 @@ export function createLibrarySearchClient(
     syncing: false,
     hasSynced: false,
     bodyTextIndexed: true,
+    chatTextIndexed: true,
     version: 0,
   };
 
@@ -85,6 +88,7 @@ export function createLibrarySearchClient(
       ...status,
       ...patch,
       bodyTextIndexed: engine.isBodyTextIndexed(),
+      chatTextIndexed: engine.isChatTextIndexed(),
       version: indexChanged ? status.version + 1 : status.version,
     };
     for (const listener of listeners) listener();

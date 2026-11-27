@@ -47,15 +47,15 @@ A **narration** whose document content changed after the audio was generated. On
 _Avoid_: outdated audio, expired narration
 
 **Library search**:
-The learner-facing way to find things in their library: directories, documents and artifacts by name, and documents by their text. Covers the whole library, or one directory and its descendants when opened from inside it. Distinct from the workspace agent's `search_knowledge` over **User knowledge**.
+The learner-facing way to find things in their library: directories, documents and artifacts by name, documents by their text, and chats by their title and messages. Covers the whole library, or one directory and its descendants when opened from inside it; there a chat counts when its **Home folder (chat)** is in that tree, and chats without a home folder are left out. Chats are shown in their own section, after a divider, and open in the agent panel. Distinct from the workspace agent's `search_knowledge` over **User knowledge**. See [ADR 019](docs/adr/019-chats-in-library-search.md).
 _Avoid_: global search, find, content search (when meaning the whole feature)
 
 **Search record**:
-The per-item entry that library search matches against: one for each directory, document and artifact, holding its name and, for a document, its text. Kept in step with the item automatically; never edited by the learner.
+The per-item entry that library search matches against: one for each directory, document, artifact and chat, holding its name and, for a document, its text, or for a chat, its latest reply preview and its message text (newest kept, capped). Kept in step with the item automatically; never edited by the learner.
 _Avoid_: search index (when meaning one entry), index row, search document
 
 **Search result**:
-One directory, document or artifact returned by library search. A document found by its text shows the matching passage.
+One directory, document, artifact or chat returned by library search. A document or chat found by its text shows the matching passage.
 _Avoid_: hit (in product copy), match, referenced item
 
 ## Generated content
@@ -336,7 +336,7 @@ _Avoid_: migration order, pre/post hook
 - A **Narratable check** decides whether a **Document** is a **Narratable document**; a narratable document has at most one **Narration**, made of **Narration parts** in document order
 - An **agent turn** may return **Referenced items** alongside its reply
 - An agent thread has at most one **Home folder**; a **Directory** lists the chats whose home folder it is
-- Every **Directory**, **Document** and **Artifact** has one **Search record**; **Library search** returns **Search results** drawn from them
+- Every **Directory**, **Document**, **Artifact** and chat (agent thread) has one **Search record**; **Library search** returns **Search results** drawn from them
 - An agent thread has many **agent turns** and at most one **active turn**; every turn that ends writes exactly one assistant message
 - **Platform agent knowledge** is retrieved as **Platform knowledge chunks** into the workspace-agent planner prompt; **User knowledge** is searched separately with `search_knowledge`
 

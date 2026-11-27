@@ -3,11 +3,12 @@
  * Backfill library search records (`users/{uid}/searchRecords/*`) for items
  * created before the library search triggers existed. Library search on web
  * and mobile reads only these records, so without this run existing
- * directories, documents and artifacts cannot be found.
+ * directories, documents, artifacts and agent chats cannot be found.
  *
- * For every directory, document and artifact it builds the same record the
- * `sync*SearchRecord` triggers write (documents also get their body text from
- * Cloud Storage) and writes it only when it differs. Safe to re-run.
+ * For every directory, document, artifact and agent chat it builds the same
+ * record the `sync*SearchRecord` triggers write (documents also get their body
+ * text from Cloud Storage, chats their message text) and writes it only when
+ * it differs. Safe to re-run; re-run after deploying chat search (schema v2).
  *
  * @release-phase post-functions
  *

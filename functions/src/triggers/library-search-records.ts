@@ -51,3 +51,5 @@ export const syncDiagramQuizSearchRecord =
 export const syncSequenceQuizSearchRecord =
   createSearchRecordTrigger('sequenceQuiz');
 export const syncMatchQuizSearchRecord = createSearchRecordTrigger('matchQuiz');
+/** Agent threads; the message text is read when the thread's lastMessageAt moves. */
+export const syncChatSearchRecord = createSearchRecordTrigger('chat');

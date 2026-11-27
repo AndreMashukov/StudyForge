@@ -129,6 +129,7 @@ export {
   syncDiagramQuizSearchRecord,
   syncSequenceQuizSearchRecord,
   syncMatchQuizSearchRecord,
+  syncChatSearchRecord,
 } from './triggers/library-search-records';
 
 export {
