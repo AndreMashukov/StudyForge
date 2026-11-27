@@ -47,6 +47,7 @@ import type { ArtifactAgentJobPayload } from '@study-forge/backend-artifacts/art
 import type { IFlashcardJobPayload } from '@study-forge/backend-artifacts/flashcards';
 import {
   getDocumentFallbackColor,
+  findAgentPromptByName,
   isAgentPromptApplicability,
 } from '@shared-types';
 import {
@@ -1428,6 +1429,33 @@ export function createAgentToolDefinitions(
         }
 
         const applicableTo = parseRuleApplicabilityArray(args.applicableTo);
+
+        // Saving an agent prompt under a name that exists updates it: the
+        // planner can save twice in one thread, and two "/" rows with the
+        // same name cannot be told apart.
+        const existingAgentPrompt = isAgentPromptApplicability(applicableTo)
+          ? findAgentPromptByName(await getRules(context.userId), name)
+          : undefined;
+        if (existingAgentPrompt) {
+          const updated = await updateRule(context.userId, {
+            ruleId: existingAgentPrompt.id,
+            content,
+            ...(typeof args.description === 'string'
+              ? { description: args.description }
+              : {}),
+          });
+          pushAction(context, {
+            kind: 'update_rule',
+            summary: `Updated saved prompt "${updated.name}" (type / to run it)`,
+            entityType: 'rule',
+            entityId: updated.id,
+          });
+          await AgentKnowledgeLifecycle.indexRule(context.userId, updated.id);
+          return {
+            ...updated,
+            note: `A saved prompt named "${updated.name}" already existed, so it was updated instead of creating a second one.`,
+          };
+        }
 
         const rule = await createRule(context.userId, {
           name,

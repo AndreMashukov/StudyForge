@@ -115,6 +115,7 @@ import {
   createRule,
   detachRuleFromDirectory,
   getRule,
+  getRules,
   updateRule,
 } from '@study-forge/backend-directories/rule-crud';
 import { DocumentCrudService } from '@study-forge/backend-documents/document-crud';
@@ -382,6 +383,70 @@ describe('createAgentToolDefinitions rule tools', () => {
       tags: [],
       applicableTo: ['slide_deck'],
     });
+  });
+
+  it('updates an agent prompt that already has the name instead of adding a second', async () => {
+    const stored = {
+      id: 'rule-agent',
+      userId: 'user-1',
+      name: 'Quiz Gap Recap',
+      content: 'old',
+      color: 'purple',
+      tags: [],
+      applicableTo: ['agent'],
+      directoryIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as const;
+    vi.mocked(getRules).mockResolvedValue([
+      { ...stored, id: 'rule-doc', applicableTo: ['prompt'] },
+      stored,
+    ]);
+    vi.mocked(updateRule).mockResolvedValue({ ...stored, content: 'new' });
+    const context = createContext();
+
+    const tools = createAgentToolDefinitions(context);
+    const result = await executeAgentTool(tools, 'create_rule', {
+      name: '  quiz gap   recap ',
+      content: 'new',
+      description: 'Gap-based recap',
+      applicableTo: ['agent'],
+    });
+
+    expect(createRule).not.toHaveBeenCalled();
+    expect(updateRule).toHaveBeenCalledWith('user-1', {
+      ruleId: 'rule-agent',
+      content: 'new',
+      description: 'Gap-based recap',
+    });
+    expect(result).toMatchObject({ id: 'rule-agent', note: expect.stringMatching(/already existed/) });
+    expect(context.executedActions.at(-1)).toMatchObject({ kind: 'update_rule', entityId: 'rule-agent' });
+  });
+
+  it('creates a new agent prompt when no agent prompt has the name', async () => {
+    vi.mocked(getRules).mockResolvedValue([]);
+    vi.mocked(createRule).mockResolvedValue({
+      id: 'rule-new',
+      userId: 'user-1',
+      name: 'Quiz Gap Recap',
+      content: 'text',
+      color: 'purple',
+      tags: [],
+      applicableTo: ['agent'],
+      directoryIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const tools = createAgentToolDefinitions(createContext());
+    await executeAgentTool(tools, 'create_rule', {
+      name: 'Quiz Gap Recap',
+      content: 'text',
+      applicableTo: ['agent'],
+    });
+
+    expect(createRule).toHaveBeenCalled();
+    expect(updateRule).not.toHaveBeenCalled();
   });
 
   it('requires applicableTo', async () => {
