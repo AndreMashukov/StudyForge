@@ -334,6 +334,7 @@ Published blueprints cover these applicability values:
 - `quiz` for quiz generation
 - `flashcard`, `flashcard_desc` for flashcard generation
 - `slide_deck`, `diagram_quiz`, `sequence_quiz` for future or app-side artifact rules
+- `agent` for Workspace agent prompts: published ones appear to every user under "Suggested" in the "/" menu
 
 The workspace agent should not create slide decks, diagram quizzes, or sequence quizzes directly, but it may still create slide-deck or quiz-format rules from blueprints when the user asks to set up generation behavior for later use in the app. After creating such a rule, attach it to the requested directory and point the user to the matching app generator tab.
 
