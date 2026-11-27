@@ -4,6 +4,8 @@
 
 Accepted (2026-11-26). Replaces decisions 1 to 3 and 6 of [ADR 015](015-always-apply-per-folder.md).
 
+Superseded in part by [ADR 018](018-prompt-picker-ticks-save-per-folder.md) (2026-11-27): every tick in a picker saves, there is no "Save as default", and switching a rule off affects that folder only (decisions 2 and 3).
+
 ## Context
 
 ADR 015 made "Always apply" a setting for one exact folder and kept the older habit of saving it whenever a rule (a "prompt" in product copy, ADR 014) was ticked or unticked in a picker. Four expectations did not fit:

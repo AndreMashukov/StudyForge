@@ -165,8 +165,8 @@ export const RuleCard = ({
               aria-pressed={alwaysApply}
               title={
                 alwaysApply
-                  ? 'Applied by default to what you create in this folder and its subfolders. Click to switch off.'
-                  : 'Not applied by default here. Click to apply it by default in this folder and its subfolders.'
+                  ? 'Applied by default to what you create in this folder. Click to switch it off here; subfolders are not changed.'
+                  : 'Not applied by default in this folder. Click to switch it back on here.'
               }
               className="gap-1.5"
             >

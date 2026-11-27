@@ -54,26 +54,6 @@ function getDirectoryHierarchyFromTree(
   return { directory, ancestors };
 }
 
-/** The directory's id, then its parent's, up to the root (for always apply). */
-function directoryChainOf(hierarchy: IDirectoryHierarchy): string[] {
-  return [hierarchy.directory, ...[...hierarchy.ancestors].reverse()].map(
-    (directory) => directory.id,
-  );
-}
-
-/** Folder chain for always apply: the directory's id first, then its parents. */
-export async function fetchDirectoryChain(
-  userId: string,
-  directoryId: string,
-): Promise<string[]> {
-  const tree = await fetchDirectoryTreeFromFirestore(userId);
-  const hierarchy = getDirectoryHierarchyFromTree(tree, directoryId);
-  if (!hierarchy) {
-    throw new Error('Directory not found');
-  }
-  return directoryChainOf(hierarchy);
-}
-
 export interface IResolvedDirectoryRules {
   rules: Rule[];
   inheritanceMap: Record<string, Rule[]>;
@@ -142,7 +122,7 @@ function resolveRulesFromHierarchy(
   return {
     rules,
     inheritanceMap,
-    defaultRuleIds: defaultRuleIdsIn(rules, directoryChainOf(hierarchy)),
+    defaultRuleIds: defaultRuleIdsIn(rules, hierarchy.directory.id),
   };
 }
 

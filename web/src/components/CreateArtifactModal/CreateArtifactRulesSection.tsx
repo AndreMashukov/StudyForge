@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React from 'react';
 import { RuleApplicability } from '@shared-types';
 import { CompactRuleSelector } from '../CompactRuleSelector';
 
@@ -20,46 +20,24 @@ export const CreateArtifactRulesSection: React.FC<ICreateArtifactRulesSection> =
   descriptionRuleIds,
   onRuleIdsChange,
   onDescriptionRuleIdsChange,
-}) => {
-  const [busyByKey, setBusyByKey] = useState<Record<string, boolean>>({});
+}) => (
+  <div className="space-y-4">
+    <CompactRuleSelector
+      directoryId={directoryId}
+      operation={ruleApplicability}
+      selectedRuleIds={ruleIds}
+      onSelectionChange={onRuleIdsChange}
+      label="Generation prompts"
+    />
 
-  const handleBusyChange = useCallback((key: string, busy: boolean) => {
-    setBusyByKey((previous) => {
-      if (previous[key] === busy) {
-        return previous;
-      }
-      return { ...previous, [key]: busy };
-    });
-  }, []);
-
-  const controlsDisabled = useMemo(
-    () => Object.values(busyByKey).some(Boolean),
-    [busyByKey],
-  );
-
-  return (
-    <div className="space-y-4">
+    {descriptionRuleApplicability ? (
       <CompactRuleSelector
         directoryId={directoryId}
-        operation={ruleApplicability}
-        selectedRuleIds={ruleIds}
-        onSelectionChange={onRuleIdsChange}
-        label="Generation prompts"
-        controlsDisabled={controlsDisabled}
-        onBusyChange={(busy) => handleBusyChange('generation', busy)}
+        operation={descriptionRuleApplicability}
+        selectedRuleIds={descriptionRuleIds}
+        onSelectionChange={onDescriptionRuleIdsChange}
+        label="Description prompts"
       />
-
-      {descriptionRuleApplicability ? (
-        <CompactRuleSelector
-          directoryId={directoryId}
-          operation={descriptionRuleApplicability}
-          selectedRuleIds={descriptionRuleIds}
-          onSelectionChange={onDescriptionRuleIdsChange}
-          label="Description prompts"
-          controlsDisabled={controlsDisabled}
-          onBusyChange={(busy) => handleBusyChange('description', busy)}
-        />
-      ) : null}
-    </div>
-  );
-};
+    ) : null}
+  </div>
+);

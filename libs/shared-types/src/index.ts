@@ -1306,12 +1306,12 @@ export interface Rule {
   applicableTo: RuleApplicability[];
   directoryIds: string[]; // Directories this rule is attached to
   /**
-   * Always apply (ADR 016): folders that explicitly switched this rule on /
-   * off by default. A folder in neither list follows its parent; with no
-   * choice anywhere the rule applies. See `rule-always-apply.ts`.
+   * Always apply (ADR 018): folders that switched this rule off by default.
+   * Each entry affects that folder only. See `rule-always-apply.ts`.
    */
-  alwaysApplyDirectoryIds?: string[];
   alwaysApplyOffDirectoryIds?: string[];
+  /** Legacy "on" list (ADR 015/016): kept in data, no longer read or written. */
+  alwaysApplyDirectoryIds?: string[];
   sourceBlueprintId?: string;
   sourceBlueprintVersion?: number;
   sourceBlueprintName?: string;

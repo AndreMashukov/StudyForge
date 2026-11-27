@@ -1,79 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import {
-  defaultRuleIdsIn,
-  planAlwaysApplyChange,
-  ruleAppliesByDefault,
-} from './rule-always-apply';
+import { defaultRuleIdsIn, ruleAppliesByDefault } from './rule-always-apply';
 
-// Chains are folder first, then parents: Cells is inside Biology.
-const BIOLOGY = ['biology'];
-const CELLS = ['cells', 'biology'];
-const MITOSIS = ['mitosis', 'cells', 'biology'];
+// Cells is inside Biology; Mitosis is inside Cells.
 
 describe('ruleAppliesByDefault', () => {
-  it('applies everywhere when no folder made a choice', () => {
-    expect(ruleAppliesByDefault({ id: 'a' }, BIOLOGY)).toBe(true);
-    expect(ruleAppliesByDefault({ id: 'a' }, MITOSIS)).toBe(true);
+  it('applies everywhere when no folder switched it off', () => {
+    expect(ruleAppliesByDefault({ id: 'a' }, 'biology')).toBe(true);
+    expect(ruleAppliesByDefault({ id: 'a' }, 'mitosis')).toBe(true);
   });
 
-  it('carries a switch-off down to subfolders', () => {
+  it('switches off in that folder only, not in its subfolders or parents', () => {
     const rule = { id: 'a', alwaysApplyOffDirectoryIds: ['cells'] };
-    expect(ruleAppliesByDefault(rule, BIOLOGY)).toBe(true);
-    expect(ruleAppliesByDefault(rule, CELLS)).toBe(false);
-    expect(ruleAppliesByDefault(rule, MITOSIS)).toBe(false);
+    expect(ruleAppliesByDefault(rule, 'biology')).toBe(true);
+    expect(ruleAppliesByDefault(rule, 'cells')).toBe(false);
+    expect(ruleAppliesByDefault(rule, 'mitosis')).toBe(true);
   });
 
-  it('lets a subfolder switch it back on', () => {
+  it('ignores the old "on" list', () => {
     const rule = {
       id: 'a',
-      alwaysApplyOffDirectoryIds: ['biology'],
-      alwaysApplyDirectoryIds: ['mitosis'],
+      alwaysApplyOffDirectoryIds: ['cells'],
+      alwaysApplyDirectoryIds: ['cells'],
     };
-    expect(ruleAppliesByDefault(rule, BIOLOGY)).toBe(false);
-    expect(ruleAppliesByDefault(rule, CELLS)).toBe(false);
-    expect(ruleAppliesByDefault(rule, MITOSIS)).toBe(true);
+    expect(ruleAppliesByDefault(rule, 'cells')).toBe(false);
   });
+});
 
+describe('defaultRuleIdsIn', () => {
   it('lists the rules that apply by default in a folder', () => {
     const rules = [
       { id: 'a' },
       { id: 'b', alwaysApplyOffDirectoryIds: ['biology'] },
       { id: 'c', alwaysApplyOffDirectoryIds: ['cells'] },
     ];
-    expect(defaultRuleIdsIn(rules, BIOLOGY)).toEqual(['a', 'c']);
-    expect(defaultRuleIdsIn(rules, CELLS)).toEqual(['a']);
-  });
-});
-
-describe('planAlwaysApplyChange', () => {
-  it('stores a choice that differs from the parents', () => {
-    expect(planAlwaysApplyChange({ id: 'a' }, CELLS, false)).toEqual({
-      on: 'remove',
-      off: 'add',
-    });
-    expect(
-      planAlwaysApplyChange(
-        { id: 'a', alwaysApplyOffDirectoryIds: ['biology'] },
-        CELLS,
-        true,
-      ),
-    ).toEqual({ on: 'add', off: 'remove' });
-  });
-
-  it('clears the choice when it matches the parents, so the folder follows them again', () => {
-    expect(
-      planAlwaysApplyChange(
-        { id: 'a', alwaysApplyOffDirectoryIds: ['cells'] },
-        CELLS,
-        true,
-      ),
-    ).toEqual({ on: 'remove', off: 'remove' });
-    expect(
-      planAlwaysApplyChange(
-        { id: 'a', alwaysApplyOffDirectoryIds: ['biology'] },
-        CELLS,
-        false,
-      ),
-    ).toEqual({ on: 'remove', off: 'remove' });
+    expect(defaultRuleIdsIn(rules, 'biology')).toEqual(['a', 'c']);
+    expect(defaultRuleIdsIn(rules, 'cells')).toEqual(['a', 'b']);
+    expect(defaultRuleIdsIn(rules, 'mitosis')).toEqual(['a', 'b', 'c']);
   });
 });
