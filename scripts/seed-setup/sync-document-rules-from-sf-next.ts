@@ -56,7 +56,7 @@ async function upsertRule(
     description: string;
     content: string;
     applicableTo: string[];
-    /** Always apply in every folder in directoryIds (ADR 015). */
+    /** Applies by default in every folder in directoryIds (ADR 018). */
     alwaysApply: boolean;
     tags: string[];
     color: string;
@@ -68,6 +68,10 @@ async function upsertRule(
   const now = admin.firestore.Timestamp.now();
   const previous = existing.exists ? existing.data() : undefined;
   const directoryIds: string[] = data.directoryIds ?? previous?.directoryIds ?? [];
+  const previousOff: unknown = previous?.alwaysApplyOffDirectoryIds;
+  const previousOffDirectoryIds = Array.isArray(previousOff)
+    ? previousOff.filter((id): id is string => typeof id === 'string')
+    : [];
 
   await ref.set(
     {
@@ -80,9 +84,10 @@ async function upsertRule(
       tags: data.tags,
       applicableTo: data.applicableTo,
       directoryIds,
-      alwaysApplyDirectoryIds: data.alwaysApply
-        ? directoryIds
-        : (previous?.alwaysApplyDirectoryIds ?? []),
+      // ADR 018: a folder in the off list does not apply the rule by default.
+      alwaysApplyOffDirectoryIds: data.alwaysApply
+        ? previousOffDirectoryIds.filter((id) => !directoryIds.includes(id))
+        : previousOffDirectoryIds,
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     },

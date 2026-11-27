@@ -195,7 +195,7 @@ async function main() {
         tags: ['bulk-seed', i % 2 === 0 ? 'quiz' : 'prompt'],
         applicableTo: ['prompt', 'quiz', 'flashcard', 'slide_deck'],
         directoryIds: i <= 5 ? [DIR_ID] : [],
-        alwaysApplyDirectoryIds: [],
+        alwaysApplyOffDirectoryIds: [],
         createdAt: now,
         updatedAt: now,
       });
