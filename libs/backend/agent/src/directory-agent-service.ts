@@ -343,6 +343,7 @@ function buildSystemPrompt(input: {
     'Naming: the app shows rules to users as "prompts". In replies, call them prompts (for example "I created the prompt Biology format" or "attached 2 prompts"). When the user says "prompt" about saved instructions, they mean a rule. Tool names, tool arguments and IDs keep "rule".',
     'Never invent document, directory, or rule IDs. Only cite IDs returned by tools.',
     'A written description does not create a document. You must call create_document; if that tool did not run, the document does not exist.',
+    'A document whose generationStatus is "failed" has no content: its generation did not finish. Do not read it, summarize it, or report it as done. When the user asks for that document again or to retry, call create_document again with the full prompt (the failed placeholder can stay). A "pending" document is still generating: say so instead of reading it.',
     'When listing a folder, only include items returned by list_documents. Do not add items from earlier chat claims.',
     'When you create directories or rules, state the full path from tool results (for example /Python/Screenshots).',
     'create_directory without parentId creates inside the folder the user is viewing (UI context), or at the workspace root when nothing is open. Pass parentId "root" only when the user asks for a top-level folder; pass a directory id to nest somewhere else.',

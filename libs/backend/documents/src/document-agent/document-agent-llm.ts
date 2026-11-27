@@ -91,6 +91,33 @@ ${references}
 Synthesize the reference material into a polished learning document.`;
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The critic and refiner are optional quality passes over a fragment that has
+ * already been through validation (and FinalizeAgent validates again). An LLM
+ * failure in either one is recorded as a warning residual instead of failing
+ * the whole document.
+ */
+function recordSkippedQualityPass(
+  diagnostics: IArtifactAgentDiagnostics,
+  role: 'critic' | 'refiner',
+  error: unknown,
+): void {
+  const message = errorMessage(error);
+  logger.warn(`Document agent ${role} failed; continuing without it`, {
+    role,
+    error: message,
+  });
+  diagnostics.residuals.push({
+    gateId: `document-agent-${role}`,
+    severity: 'warning',
+    message: `${role} step skipped: ${message}`,
+  });
+}
+
 async function generateText(
   userId: string,
   capability: 'documentFromPrompt' | 'documentFromScreenshot' | 'sourceDocumentEnhancement',
@@ -100,15 +127,19 @@ async function generateText(
 ): Promise<string> {
   const route = await resolveTextRoute(userId, capability, `document-agent-${role}`);
   const startMs = Date.now();
-  const profile =
-    role === 'critic' || role === 'refiner'
-      ? 'deterministicUtility'
-      : 'structuredArtifact';
+  const isQualityPass = role === 'critic' || role === 'refiner';
+  const profile = isQualityPass ? 'deterministicUtility' : 'structuredArtifact';
 
   const text = await LlmGenerationService.generateText(userId, capability, prompt, {
     logLabel: `document-agent-${role}`,
     successLogMessage: 'Document agent text generated',
     profile,
+    // The critic and refiner read the whole HTML fragment plus the rules. With
+    // reasoning on (the deterministicUtility default), MiniMax-M3 spends the
+    // 8192-token budget on thinking and returns no content, or runs past the
+    // 120s request timeout, for long documents. Generator and repair already
+    // run without reasoning via structuredArtifact.
+    ...(isQualityPass ? { disableReasoning: true } : {}),
   });
 
   recordModelUsage(diagnostics, {
@@ -279,7 +310,13 @@ Return ONLY valid JSON:
   ]
 }`;
 
-  const raw = await generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'critic');
+  let raw: string;
+  try {
+    raw = await generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'critic');
+  } catch (error) {
+    recordSkippedQualityPass(diagnostics, 'critic', error);
+    return { passed: true, findings: '' };
+  }
   try {
     const parsed = criticResponseSchema.parse(JSON.parse(raw));
     const failed = parsed.findings.filter((finding) => !finding.satisfied && finding.severity === 'error');
@@ -322,7 +359,12 @@ ${htmlFragment}
 Revise the fragment to address every critic issue while preserving valid content.
 ${buildSealedHtmlOutputContract(rulesText || undefined)}`;
 
-  return generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'refiner');
+  try {
+    return await generateText(userId, 'documentFromPrompt', prompt, diagnostics, 'refiner');
+  } catch (error) {
+    recordSkippedQualityPass(diagnostics, 'refiner', error);
+    return htmlFragment;
+  }
 }
 
 export function formatValidationErrorsForRepair(findings: Parameters<typeof formatValidationFindings>[0]): string {
