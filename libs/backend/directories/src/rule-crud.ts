@@ -53,8 +53,7 @@ export async function createRule(
     tags: request.tags || [],
     applicableTo,
     directoryIds: [], // Empty initially, attached separately
-    // Folders with an explicit always-apply choice (ADR 016)
-    alwaysApplyDirectoryIds: [],
+    // Folders that switched this rule off by default (ADR 018)
     alwaysApplyOffDirectoryIds: [],
     ...(request.sourceBlueprintId
       ? {
@@ -307,15 +306,13 @@ export async function attachRuleToDirectory(
   }
 
   // An attached rule applies by default in the folder and its subfolders
-  // (ADR 016). `alwaysApply: false` attaches it switched off there instead.
+  // (ADR 016). `alwaysApply: false` attaches it switched off in this folder
+  // only; its subfolders still apply it (ADR 018).
   const alwaysApply = options.alwaysApply !== false;
 
   // Add directory ID to rule's directoryIds array (if not already present)
   batch.update(ruleRef, {
     directoryIds: FieldValue.arrayUnion(directoryId),
-    alwaysApplyDirectoryIds: alwaysApply
-      ? FieldValue.arrayUnion(directoryId)
-      : FieldValue.arrayRemove(directoryId),
     alwaysApplyOffDirectoryIds: alwaysApply
       ? FieldValue.arrayRemove(directoryId)
       : FieldValue.arrayUnion(directoryId),

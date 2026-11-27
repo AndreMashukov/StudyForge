@@ -9,11 +9,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import {
-  agentPromptAttachError,
-  planAlwaysApplyChange,
-  validateAgentPromptRule,
-} from '@shared-types';
+import { agentPromptAttachError, validateAgentPromptRule } from '@shared-types';
 import type {
   CreateRuleRequest,
   DeleteRuleResponse,
@@ -24,7 +20,6 @@ import type {
 import { db } from '../config/firebase';
 import { directoryRef, ruleRef } from './firestorePaths';
 import { fetchRuleFromFirestore } from './rulesFirestore';
-import { fetchDirectoryChain } from './directoryRulesResolution';
 
 export async function createRuleInFirestore(
   userId: string,
@@ -57,7 +52,6 @@ export async function createRuleInFirestore(
     tags: request.tags || [],
     applicableTo: request.applicableTo,
     directoryIds: [],
-    alwaysApplyDirectoryIds: [],
     alwaysApplyOffDirectoryIds: [],
     ...(request.sourceBlueprintId
       ? {
@@ -209,7 +203,6 @@ export async function attachRuleToDirectoryInFirestore(
   // An attached rule applies by default in the folder and below (ADR 016).
   batch.update(ruleDocRef, {
     directoryIds: arrayUnion(directoryId),
-    alwaysApplyDirectoryIds: arrayUnion(directoryId),
     alwaysApplyOffDirectoryIds: arrayRemove(directoryId),
     updatedAt: serverTimestamp(),
   });
@@ -222,32 +215,17 @@ export async function attachRuleToDirectoryInFirestore(
 }
 
 /**
- * Switches a rule on or off by default in one folder (always apply, ADR 016).
- * Subfolders follow unless they made their own choice. When the wanted state is
- * what the folder gets from its parents anyway, its own choice is cleared.
+ * Switches a rule on or off by default in one folder (always apply, ADR 018).
+ * Only that folder changes: subfolders, parents and siblings keep their state.
  */
 export async function setRuleAlwaysApplyInFirestore(
   userId: string,
   request: SetRuleAlwaysApplyRequest,
 ): Promise<void> {
-  const [rule, directoryChain] = await Promise.all([
-    fetchRuleFromFirestore(userId, request.ruleId),
-    fetchDirectoryChain(userId, request.directoryId),
-  ]);
-  if (!rule) {
-    throw new Error('Prompt not found');
-  }
-
-  const change = planAlwaysApplyChange(rule, directoryChain, request.alwaysApply);
   await updateDoc(ruleRef(userId, request.ruleId), {
-    alwaysApplyDirectoryIds:
-      change.on === 'add'
-        ? arrayUnion(request.directoryId)
-        : arrayRemove(request.directoryId),
-    alwaysApplyOffDirectoryIds:
-      change.off === 'add'
-        ? arrayUnion(request.directoryId)
-        : arrayRemove(request.directoryId),
+    alwaysApplyOffDirectoryIds: request.alwaysApply
+      ? arrayRemove(request.directoryId)
+      : arrayUnion(request.directoryId),
     updatedAt: serverTimestamp(),
   });
 }

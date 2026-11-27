@@ -159,8 +159,6 @@ export async function resolveRulesForDirectory(
 ): Promise<{
   rules: Rule[];
   inheritanceMap: { [directoryId: string]: Rule[] };
-  /** The directory's id, then its parent's, up to the root (for always apply). */
-  directoryChain: string[];
 }> {
   const hierarchy = await getDirectoryHierarchy(userId, directoryId);
   
@@ -237,7 +235,6 @@ export async function resolveRulesForDirectory(
   return {
     rules: sortedRules,
     inheritanceMap,
-    directoryChain: allDirectories.map((dir) => dir.id).reverse(),
   };
 }
 
@@ -293,7 +290,7 @@ export async function resolveEffectiveRules({
 
     const inherited = await resolveRulesForDirectory(userId, directoryId, operation);
     inheritedRules = inherited.rules.filter((rule) =>
-      ruleAppliesByDefault(rule, inherited.directoryChain),
+      ruleAppliesByDefault(rule, directoryId),
     );
     Object.assign(inheritanceMap, inherited.inheritanceMap);
   }
@@ -368,14 +365,14 @@ export async function getApplicableRules(
   directoryId: string,
   operation: RuleApplicability
 ): Promise<{ rules: Rule[]; defaultRuleIds: string[] }> {
-  const { rules, directoryChain } = await resolveRulesForDirectory(
+  const { rules } = await resolveRulesForDirectory(
     userId,
     directoryId,
     operation,
   );
 
-  // The folder's default rules (always apply, ADR 016).
-  const defaultRuleIds = defaultRuleIdsIn(rules, directoryChain);
+  // The folder's default rules (always apply, ADR 018).
+  const defaultRuleIds = defaultRuleIdsIn(rules, directoryId);
 
   return {
     rules,

@@ -1502,7 +1502,7 @@ export function createAgentToolDefinitions(
           alwaysApply: {
             type: 'boolean',
             description:
-              'With directoryId: the attached rule applies by default in that folder and its subfolders. Pass false to attach it switched off by default.',
+              'With directoryId: the attached rule applies by default in that folder and its subfolders. Pass false to attach it switched off by default in that folder only (its subfolders still apply it).',
           },
         },
         required: ['blueprintId', 'name', 'content'],
@@ -1647,7 +1647,7 @@ export function createAgentToolDefinitions(
     {
       name: 'attach_rule_to_directory',
       description:
-        'Attach a rule to a directory. An attached rule applies by default to everything generated in that folder and its subfolders. Pass alwaysApply false to attach it switched off by default (it can still be picked for a single generation).',
+        'Attach a rule to a directory. An attached rule applies by default to everything generated in that folder and its subfolders. Pass alwaysApply false to attach it switched off by default in that folder only; its subfolders still apply it (it can still be picked for a single generation).',
       parameters: {
         type: 'object',
         properties: {

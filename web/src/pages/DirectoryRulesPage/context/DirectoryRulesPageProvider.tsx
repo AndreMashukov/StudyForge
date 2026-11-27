@@ -107,8 +107,8 @@ export const DirectoryRulesPageProvider = ({
     [navigate, directoryId]
   );
 
-  // Switches a rule on or off by default in this folder; subfolders follow
-  // unless they made their own choice (always apply, ADR 016).
+  // Switches a rule on or off by default in this folder only; subfolders keep
+  // their own state (always apply, ADR 018).
   const handleToggleAlwaysApply = useCallback(
     async (rule: Rule) => {
       if (!directoryId) return;

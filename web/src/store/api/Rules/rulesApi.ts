@@ -131,7 +131,7 @@ export const rulesApi = baseApi.injectEndpoints({
       ],
     }),
 
-    /** Always apply for one rule in one folder (ADR 015). */
+    /** Always apply for one rule in one folder (ADR 018). */
     setRuleAlwaysApply: builder.mutation<void, SetRuleAlwaysApplyRequest>({
       async queryFn(data) {
         const userId = auth.currentUser?.uid;
