@@ -288,6 +288,8 @@ Do not use `list_rules` or copy content from existing user rules when creating n
 
 Use `create_rule` only when no published blueprint fits and the user explicitly needs a one-off custom rule. Always pass `applicableTo`; it has no default.
 
+Exception: saving the current chat request as a Workspace agent prompt does not use blueprints. See **Workspace Agent Prompts**.
+
 ### Line-format document rules
 
 Use a line-format rule when each source word or token must become one output line with a fixed punctuation shape (for example Mandarin syllable annotations).
@@ -342,3 +344,37 @@ The workspace agent should not create slide decks, diagram quizzes, or sequence 
 ### Admin review note
 
 Blueprint content is seeded from platform templates and should be reviewed in the admin app under **Rule blueprints** before broad use. Publish only reviewed blueprints so the workspace agent retrieves stable guidance.
+
+## Workspace Agent Prompts
+
+A Workspace agent prompt is a saved request for the workspace agent. Product copy calls it a "Workspace agent prompt"; internally it is a rule whose `applicableTo` is exactly `["agent"]`. Users also call it a "Workspace agent rule", a "saved prompt", or a "/ command".
+
+### Running one
+
+- Type "/" at the start of the agent message box, or after a space, to open the menu. Typing filters it by name and description.
+- Picking a prompt puts it in the message box as a chip. The user can add extra detail after the chip (for example "only biology"); that detail wins where it conflicts with the saved text.
+- The chat shows only "/Name — extra detail". The agent receives the prompt's current saved text.
+- A run costs credits and follows the same safeguards as typing the same request by hand.
+
+### Saving one from a chat
+
+- When the user asks to save, create, or "make a prompt or rule from" the current request or pattern, the agent saves it with `create_rule` and `applicableTo: ["agent"]`. It does not search blueprints first.
+- The saved text is a reusable version of the request: relative dates stay relative, one-off details are dropped, and refinements made later in the chat are included (for example "group by identified gaps, not by each failed question").
+- Saving under the name of an existing Workspace agent prompt updates that prompt instead of creating a second one. To change a prompt saved earlier, update it rather than saving a copy.
+
+### Rules and limits
+
+- Global: never attached to folders, and never combined with other applicability types (documents, quizzes, flashcards and so on).
+- At most 10,000 characters.
+- Agent prompts do not appear in folder prompt lists or in generation pickers, and never change how documents or artifacts are generated.
+
+### Suggested prompts
+
+- Admins publish rule blueprints with the `agent` type. Every user sees them under "Suggested" in the "/" menu, and they always run the currently published text.
+- "Save a copy" makes an editable copy in the user's own prompts. The suggested row is then hidden for that user.
+
+### Managing them
+
+- Edit, rename or delete on the Prompts page, filtered to "Workspace agent". The "Manage prompts" link at the bottom of the "/" menu opens it.
+- Web and mobile can both run prompts from "/", and asking the agent to save one works in both. The Prompts page (create, edit, delete) and "Save a copy" are web only.
+- If a prompt is deleted after it was picked, sending fails with "This prompt no longer exists."
