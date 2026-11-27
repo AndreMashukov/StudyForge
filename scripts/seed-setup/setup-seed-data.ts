@@ -366,7 +366,7 @@ async function main() {
       tags: rule.tags,
       applicableTo: rule.applicableTo,
       directoryIds: [DIR_ID],
-      alwaysApplyDirectoryIds: rule.alwaysApply ? [DIR_ID] : [],
+      alwaysApplyOffDirectoryIds: rule.alwaysApply ? [] : [DIR_ID],
       createdAt: now,
       updatedAt: now,
     };
