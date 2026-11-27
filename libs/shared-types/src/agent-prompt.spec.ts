@@ -4,6 +4,7 @@ import {
   AGENT_PROMPT_CONTENT_MAX,
   buildAgentPromptMenu,
   buildAgentPromptRunMessage,
+  findAgentPromptByName,
   findAgentPromptSlashTrigger,
   formatAgentPromptShortForm,
   toggleRuleApplicabilityValue,
@@ -52,6 +53,22 @@ describe('validateAgentPromptRule', () => {
         directoryIds: ['d1'],
       }),
     ).toMatch(/Detach/);
+  });
+});
+
+describe('findAgentPromptByName', () => {
+  const rules = [
+    { id: 'doc', name: 'Quiz Gap Recap', applicableTo: ['prompt'] },
+    { id: 'agent', name: 'Quiz Gap Recap', applicableTo: ['agent'] },
+  ];
+
+  it('matches agent prompts ignoring case and spacing', () => {
+    expect(findAgentPromptByName(rules, ' quiz  gap recap ')?.id).toBe('agent');
+  });
+
+  it('ignores other rules and blank names', () => {
+    expect(findAgentPromptByName(rules.slice(0, 1), 'Quiz Gap Recap')).toBeUndefined();
+    expect(findAgentPromptByName(rules, '  ')).toBeUndefined();
   });
 });
 

@@ -34,7 +34,7 @@ Admins also want to publish ready-made ones, such as "Yesterday activity recap d
    - Running a suggested one loads the blueprint's currently published text, so an admin edit changes it for everyone on their next run.
    - "Save a copy" makes an editable rule with `sourceBlueprintId`; the menu then hides the suggested row for that learner in favour of the copy.
    - The menu has no built-in commands.
-4. **Saving from a chat is the agent's job.** The system prompt tells the agent to call `create_rule` with `["agent"]` when asked to save the current request. It writes a reusable version (relative dates stay relative, one-off details are dropped, later refinements are folded in) and saves without a confirmation step.
+4. **Saving from a chat is the agent's job.** The system prompt tells the agent to call `create_rule` with `["agent"]` when asked to save the current request. It writes a reusable version (relative dates stay relative, one-off details are dropped, later refinements are folded in) and saves without a confirmation step. Saving under the name of an existing agent prompt updates that prompt, so a repeated save never adds a second "/" row with the same name.
 
 ## Alternatives considered
 

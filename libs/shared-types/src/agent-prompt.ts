@@ -75,6 +75,30 @@ export function isAgentPromptApplicability(
   return (applicableTo ?? []).includes(AGENT_PROMPT_APPLICABILITY);
 }
 
+/** Compares agent prompt names the way the "/" menu shows them: case, spacing aside. */
+export function normalizeAgentPromptName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * The learner's agent prompt with this name, if any. Saving a prompt under a
+ * name that already exists updates that prompt instead of adding a second
+ * "/" menu row with the same name.
+ */
+export function findAgentPromptByName<
+  T extends { name: string; applicableTo?: readonly string[] },
+>(rules: readonly T[], name: string): T | undefined {
+  const wanted = normalizeAgentPromptName(name);
+  if (!wanted) {
+    return undefined;
+  }
+  return rules.find(
+    (rule) =>
+      isAgentPromptApplicability(rule.applicableTo) &&
+      normalizeAgentPromptName(rule.name) === wanted,
+  );
+}
+
 /**
  * Checks a rule's applicability and content against the agent prompt rules.
  * Returns the learner-facing error, or null when the rule is fine.
