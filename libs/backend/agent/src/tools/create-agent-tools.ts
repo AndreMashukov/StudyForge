@@ -650,7 +650,7 @@ export function createAgentToolDefinitions(
     {
       name: 'list_documents',
       description:
-        'List document metadata in scope. Pass directoryId to focus on one folder (recommended when UI context is a directory). Does not include document body content; use get_document_content next.',
+        'List document metadata in scope. Pass directoryId to focus on one folder (recommended when UI context is a directory). Does not include document body content; use get_document_content next. generationStatus "pending" means the document is still generating; "failed" means generation did not finish and the document has no content (generationError says why).',
       parameters: {
         type: 'object',
         properties: {
@@ -697,6 +697,13 @@ export function createAgentToolDefinitions(
                   ? data.sourceType
                   : undefined,
               updatedAt: data.updatedAt ?? undefined,
+              ...(typeof data.generationStatus === 'string'
+                ? { generationStatus: data.generationStatus }
+                : {}),
+              ...(data.generationStatus === 'failed' &&
+              typeof data.generationError === 'string'
+                ? { generationError: data.generationError }
+                : {}),
             };
           }),
         );
