@@ -90,8 +90,12 @@ export const NARRATABLE_MIN_PROSE_CHARS = 300;
 /** Prose must be at least this share of the document's content. */
 export const NARRATABLE_MIN_PROSE_RATIO = 0.5;
 
-/** The decision model must say yes with at least this probability. */
-export const NARRATABLE_PROBABILITY_THRESHOLD = 0.7;
+/**
+ * The decision model must say yes with at least this probability. Lowered
+ * from 0.7 when code started being read aloud (ADR 020): code tutorials
+ * judged on their prose alone scored just under it.
+ */
+export const NARRATABLE_PROBABILITY_THRESHOLD = 0.6;
 
 /** Characters of prose the decision model judges. */
 export const NARRATABLE_SAMPLE_CHARS = 4_000;

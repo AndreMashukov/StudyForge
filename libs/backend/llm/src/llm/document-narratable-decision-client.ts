@@ -20,7 +20,7 @@ const NARRATABLE_DECISION_TIMEOUT_MS = 25_000;
 
 export interface IEvaluateDocumentNarratableParams {
   userId: string;
-  /** Prose sample, already stripped of code, tables and diagrams. */
+  /** Prose sample, already stripped of code blocks, tables and diagrams. */
   proseSample: string;
 }
 
@@ -44,7 +44,7 @@ export async function evaluateDocumentNarratable(
         narratable_english: {
           type: 'noul',
           instructions:
-            'Is this text written in English, and would it make sense to a learner listening to it read aloud?',
+            'Is this text written in English, and would it make sense to a learner listening to it read aloud? It is the prose of a document; its code blocks, tables and diagrams were removed from this sample. In the narration, short code examples are read aloud and longer ones are announced as "Code example", so prose that introduces or explains code still counts as something a listener can follow.',
           criteria: {
             true: 'The text is English prose: explanations, narrative, definitions or instructions that a listener can follow without seeing the page.',
             false:
