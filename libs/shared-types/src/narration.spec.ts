@@ -5,6 +5,7 @@ import {
   NARRATION_MAX_PART_CHARS,
   NARRATION_SCRIPT_VERSION,
   narrationScriptVersionFor,
+  isNarratabilityOutdated,
   NARRATION_TARGET_PART_CHARS,
   narrationCreditUnits,
   planNarrationParts,
@@ -96,7 +97,7 @@ describe('buildNarrationScript', () => {
       `<p>Short intro.</p><pre><code>${'x'.repeat(500)}</code></pre>`,
       'html',
     );
-    const script = buildNarrationScript('', blocks);
+    const script = buildNarrationScript('', blocks, 1);
     expect(script.stats.proseChars).toBe('Short intro.'.length);
     expect(script.stats.proseRatio).toBeLessThan(0.1);
   });
@@ -166,14 +167,50 @@ describe('buildNarrationScript, script version 2', () => {
     ]);
   });
 
-  it('measures prose stats on the text as written, as version 1 does', () => {
+  it('measures prose stats on the text as written', () => {
     const blocks = parseDocumentBlocks(
-      `${intro}<p>Use <code>user.id</code> or 3f2a9c1e-7b4d-4e2a-9c1e-0a1b2c3d4e5f.</p><pre><code>x = 1</code></pre>`,
+      `${intro}<p>Use <code>user.id</code> or 3f2a9c1e-7b4d-4e2a-9c1e-0a1b2c3d4e5f.</p>`,
       'html',
     );
     expect(buildNarrationScript('T', blocks, 2).stats).toEqual(
       buildNarrationScript('T', blocks, 1).stats,
     );
+  });
+
+  it('counts spoken code as prose, and long code, data and tables against it', () => {
+    const spokenCode = 'const total = price * quantity;';
+    const longCode = Array.from(
+      { length: 60 },
+      (_, index) => `const value${index} = compute(${index});`,
+    ).join('\n');
+    const blocks = parseDocumentBlocks(
+      `<p>Intro.</p><pre><code>${spokenCode}</code></pre><pre><code class="language-json">{"a": 1}</code></pre><pre><code>${longCode}</code></pre><table><tr><td>a</td><td>b</td></tr></table>`,
+      'html',
+    );
+    const v1 = buildNarrationScript('', blocks, 1).stats;
+    const v2 = buildNarrationScript('', blocks, 2).stats;
+    expect(v2.proseChars).toBe(v1.proseChars + spokenCode.length);
+    expect(v2.nonProseChars).toBe(v1.nonProseChars - spokenCode.length);
+  });
+
+  it('lets a tutorial whose code is read aloud pass the prose screen', () => {
+    const snippet = Array.from(
+      { length: 8 },
+      (_, index) => `const step${index} = await run(step${index - 1});`,
+    ).join('\n');
+    const html = Array.from(
+      { length: 4 },
+      () =>
+        `<p>${sentence.repeat(2)}</p><pre><code class="language-ts">${snippet}</code></pre>`,
+    ).join('');
+    const blocks = parseDocumentBlocks(html, 'html');
+    expect(screenNarrationScript(buildNarrationScript('', blocks, 1))).toEqual({
+      outcome: 'notNarratable',
+      reason: 'mostlyNonProse',
+    });
+    expect(screenNarrationScript(buildNarrationScript('', blocks, 2))).toEqual({
+      outcome: 'judge',
+    });
   });
 
   it('speaks the same text as version 1 when there is no code or opaque string', () => {
@@ -194,6 +231,24 @@ describe('buildNarrationScript, script version 2', () => {
     expect(
       sampleNarrationProse(buildNarrationScript('', blocks, 2)),
     ).not.toContain('secret');
+  });
+});
+
+describe('isNarratabilityOutdated', () => {
+  it('re-checks only not-narratable results from older spoken-text rules', () => {
+    expect(isNarratabilityOutdated(undefined)).toBe(false);
+    expect(isNarratabilityOutdated({ status: 'notNarratable' })).toBe(true);
+    expect(
+      isNarratabilityOutdated({ status: 'notNarratable', scriptVersion: 1 }),
+    ).toBe(true);
+    expect(
+      isNarratabilityOutdated({
+        status: 'notNarratable',
+        scriptVersion: NARRATION_SCRIPT_VERSION,
+      }),
+    ).toBe(false);
+    // Narratable results are kept current by the price lookup.
+    expect(isNarratabilityOutdated({ status: 'narratable' })).toBe(false);
   });
 });
 

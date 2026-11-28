@@ -115,6 +115,7 @@ async function judge(
     spokenCharCount: source.script.spokenCharCount,
     contentHash: source.contentHash,
     schemaVersion: NARRATION_SCHEMA_VERSION,
+    scriptVersion: source.script.scriptVersion,
     checkedAt: new Date().toISOString(),
   };
   const screen = screenNarrationScript(source.script);
@@ -317,13 +318,23 @@ export async function judgeDocumentNarratability(
 
     const source = await loadNarrationSource(userId, documentId, document);
     if (isNarratabilityCurrent(document.narratability, source.contentHash)) {
-      await reconcileIfBehind(
-        userId,
-        documentId,
-        source,
-        document.narratability,
-      );
-      return { narratability: document.narratability, judged: false };
+      let current = document.narratability;
+      // Same spoken text under newer rules: record the rules so the reader
+      // stops asking again (ADR 020). Nothing is judged.
+      if (current.scriptVersion !== source.script.scriptVersion) {
+        const stamped = {
+          ...current,
+          scriptVersion: source.script.scriptVersion,
+        };
+        if (
+          (await storeNarratability(userId, documentId, data, stamped)) ===
+          'stored'
+        ) {
+          current = stamped;
+        }
+      }
+      await reconcileIfBehind(userId, documentId, source, current);
+      return { narratability: current, judged: false };
     }
 
     const { outcome, lease } = await judge(

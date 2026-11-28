@@ -48,6 +48,20 @@ function isNarrationScriptVersion(
  * current rules when it has none. A narration from before versions were
  * stored is version 1.
  */
+/**
+ * True when a not-narratable result was judged under older spoken-text rules,
+ * so the current rules may judge it differently. A narratable result is kept
+ * current by the price lookup instead, which reports it as unjudged.
+ */
+export function isNarratabilityOutdated(
+  narratability: { status: string; scriptVersion?: number } | undefined,
+): boolean {
+  return (
+    narratability?.status === 'notNarratable' &&
+    narratability.scriptVersion !== NARRATION_SCRIPT_VERSION
+  );
+}
+
 export function narrationScriptVersionFor(
   record: { scriptVersion?: number } | null | undefined,
 ): NarrationScriptVersion {
@@ -228,8 +242,9 @@ function capitalize(value: string): string {
  * spoken code. Each run of blocks that cannot be spoken (long code, data,
  * tables, images, diagrams) becomes one short marker.
  *
- * The prose stats are measured on the text as written under every version,
- * so the narratable check does not depend on how code is spoken.
+ * The prose stats are measured on the text as written. Under version 1 all
+ * code counts against prose; under version 2 a code block that is spoken
+ * counts as prose, while long code, data and tables still count against it.
  */
 export function buildNarrationScript(
   title: string,
@@ -288,13 +303,15 @@ export function buildNarrationScript(
       return;
     }
 
-    nonProseChars +=
+    const weight =
       block.kind === 'code' || block.kind === 'table'
         ? normalizeSpokenText(documentBlockText(block)).length
         : NON_TEXT_BLOCK_WEIGHT;
     if (speaks && block.kind === 'code') {
       const spoken = spokenCodeBlock(block);
       if ('text' in spoken) {
+        // Version 2: code the listener hears counts as prose (ADR 020).
+        proseChars += weight;
         flushMarker();
         segments.push({ blockIndex, text: spoken.text, kind: 'code' });
         return;
@@ -302,8 +319,10 @@ export function buildNarrationScript(
       if (pendingBlockIndex < 0) pendingBlockIndex = blockIndex;
       if (!pendingLabels.includes(spoken.label))
         pendingLabels.push(spoken.label);
+      nonProseChars += weight;
       return;
     }
+    nonProseChars += weight;
     const label = markerLabel(block);
     if (pendingBlockIndex < 0) pendingBlockIndex = blockIndex;
     if (!pendingLabels.includes(label)) pendingLabels.push(label);
@@ -502,6 +521,12 @@ export const documentNarratabilitySchema = z.object({
   /** Hash of the spoken text that was judged. */
   contentHash: z.string().min(1),
   schemaVersion: z.number().int(),
+  /**
+   * Spoken-text rules it was judged under; missing on results from before
+   * versions were stored. A not-narratable result from older rules is checked
+   * again when the reader opens the document (ADR 020).
+   */
+  scriptVersion: z.number().int().optional(),
   checkedAt: z.string(),
 });
 export type DocumentNarratability = z.output<

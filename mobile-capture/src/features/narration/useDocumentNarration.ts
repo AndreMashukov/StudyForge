@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NarrationQuote, NarrationRecord } from '@shared-types';
+import {
+  isNarratabilityOutdated,
+  type NarrationQuote,
+  type NarrationRecord,
+} from '@shared-types';
 import {
   evaluateDocumentNarratability,
   getCallableErrorMessage,
@@ -87,7 +91,12 @@ export function useDocumentNarration(
   // Judged on open: documents with no result (judged before narration
   // existed, or whose check failed), and documents whose stored result no
   // longer matches their content, which the price lookup reports as unjudged.
-  const stale = quoteQuery.data?.unavailableReason === 'unjudged';
+  // A not-narratable result from older spoken-text rules is judged again too
+  // (ADR 020): the price lookup that finds stale results only runs for
+  // narratable documents.
+  const stale =
+    quoteQuery.data?.unavailableReason === 'unjudged' ||
+    isNarratabilityOutdated(narratability);
   const checkKey = `${documentId ?? ''}:${narratability?.contentHash ?? ''}`;
   useEffect(() => {
     if (!documentId || !documentReady || !online) return;
