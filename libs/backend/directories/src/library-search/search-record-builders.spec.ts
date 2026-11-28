@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   SEARCH_TEXT_MAX_CHARS,
+  joinChatSearchText,
   buildSearchRecord,
   buildSearchRecordTombstone,
   capSearchText,
@@ -173,6 +174,98 @@ describe('searchableFieldsChanged', () => {
         'document',
         { updatedAt: stamp(1) },
         { updatedAt: stamp(2) },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('joinChatSearchText', () => {
+  it('joins messages oldest first and strips markdown', () => {
+    expect(
+      joinChatSearchText(['**Sure**, here it is', 'Explain the Calvin cycle']),
+    ).toEqual({
+      text: 'Explain the Calvin cycle Sure , here it is',
+      truncated: false,
+    });
+  });
+
+  it('keeps the newest text when the chat is over the cap', () => {
+    const result = joinChatSearchText(['newest', 'middle', 'oldest'], 14);
+    expect(result).toEqual({ text: 'middle newest', truncated: true });
+  });
+
+  it('keeps the tail of a message that only partly fits', () => {
+    const result = joinChatSearchText(['latest', 'abcdefghij'], 12);
+    expect(result).toEqual({ text: 'fghij latest', truncated: true });
+  });
+
+  it('never starts on half of a surrogate pair', () => {
+    const result = joinChatSearchText(['😀😀😀'], 5);
+    expect(result.truncated).toBe(true);
+    expect(result.text).toBe('😀😀');
+  });
+});
+
+describe('chat search records', () => {
+  const millis = Date.UTC(2026, 10, 20);
+
+  it('builds a chat record from title, preview, home folder and messages', () => {
+    const record = buildSearchRecord(
+      {
+        itemType: 'chat',
+        sourceId: 'thread-1',
+        raw: {
+          title: 'Explain the Calvin cycle',
+          preview: 'The Calvin cycle fixes carbon…',
+          homeDirectoryId: 'dir-bio',
+          lastMessageAt: { toMillis: () => millis },
+          activeTurnId: 'turn-1',
+        },
+        text: { text: 'Explain the Calvin cycle It fixes carbon', truncated: true },
+      },
+      2,
+    );
+    expect(record).toMatchObject({
+      itemType: 'chat',
+      sourceId: 'thread-1',
+      directoryId: 'dir-bio',
+      title: 'Explain the Calvin cycle',
+      description: 'The Calvin cycle fixes carbon…',
+      text: 'Explain the Calvin cycle It fixes carbon',
+      textTruncated: true,
+      lastActivityAt: millis,
+      deleted: false,
+    });
+  });
+
+  it('has no folder and a fallback title when the thread has neither', () => {
+    const record = buildSearchRecord(
+      {
+        itemType: 'chat',
+        sourceId: 'thread-2',
+        raw: { lastMessageAt: '2026-11-20T00:00:00.000Z' },
+      },
+      2,
+    );
+    expect(record.directoryId).toBeNull();
+    expect(record.title).toBe('Untitled chat');
+    expect(record.lastActivityAt).toBe(millis);
+    expect(record.text).toBeUndefined();
+  });
+
+  it('rebuilds on new messages but not on turn bookkeeping', () => {
+    expect(
+      searchableFieldsChanged(
+        'chat',
+        { title: 'T', lastMessageAt: 1, activeTurnId: null },
+        { title: 'T', lastMessageAt: 1, activeTurnId: 'turn-2' },
+      ),
+    ).toBe(false);
+    expect(
+      searchableFieldsChanged(
+        'chat',
+        { title: 'T', lastMessageAt: 1 },
+        { title: 'T', lastMessageAt: 2 },
       ),
     ).toBe(true);
   });

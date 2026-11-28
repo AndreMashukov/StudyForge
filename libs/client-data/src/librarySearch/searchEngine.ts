@@ -13,14 +13,27 @@ import {
   type ILocalSearchRecord,
 } from './searchTypes';
 
-/** Results shown per section. */
+/** Results shown per library section. */
 export const LIBRARY_SEARCH_GROUP_LIMIT = 20;
 
+/** Results shown in the Chats section. */
+export const LIBRARY_SEARCH_CHAT_LIMIT = 10;
+
 /**
- * Above this much document text the device indexes names, descriptions and
- * tags only: building and holding a larger index is too slow for a phone.
+ * Above this much body text the device indexes names, descriptions and tags
+ * only: building and holding a larger index is too slow for a phone. Chat
+ * text is dropped first, so document text stays searchable as long as it fits.
  */
 export const LIBRARY_SEARCH_MAX_INDEXED_TEXT_CHARS = 25_000_000;
+
+/**
+ * Chats ranked by relevance get up to this much extra score when active right
+ * now, halving every {@link CHAT_RECENCY_HALF_LIFE_DAYS}: a newer chat wins a
+ * near tie, not a clearly better match.
+ */
+const CHAT_RECENCY_MAX_BOOST = 0.25;
+const CHAT_RECENCY_HALF_LIFE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const BUILD_CHUNK_SIZE = 20;
 
@@ -37,6 +50,13 @@ export interface ILibrarySearchOptions {
   directoryId?: string;
 }
 
+export interface ILibrarySearchEngineOptions {
+  /** Clock for chat recency; injectable for tests. */
+  now?: () => number;
+  /** Body text budget; defaults to {@link LIBRARY_SEARCH_MAX_INDEXED_TEXT_CHARS}. */
+  maxIndexedTextChars?: number;
+}
+
 export interface ILibrarySearchEngine {
   /** Replaces everything and rebuilds the index without blocking for long. */
   setRecords(records: ILocalSearchRecord[]): Promise<void>;
@@ -48,6 +68,8 @@ export interface ILibrarySearchEngine {
   getDirectoryTitle(directoryId: string): string | undefined;
   /** False when the library is too large to search document text on this device. */
   isBodyTextIndexed(): boolean;
+  /** False when chat message text was left out to keep within the device budget. */
+  isChatTextIndexed(): boolean;
 }
 
 function createIndex(): MiniSearch<IIndexedDocument> {
@@ -102,18 +124,53 @@ function groupOf(
   record: ILocalSearchRecord,
 ): keyof ILibrarySearchResults {
   if (record.itemType === 'directory') return 'directories';
+  if (record.itemType === 'chat') return 'chats';
   return record.itemType === 'document' ? 'documents' : 'artifacts';
 }
 
-export function createLibrarySearchEngine(): ILibrarySearchEngine {
+function groupLimit(group: keyof ILibrarySearchResults): number {
+  return group === 'chats'
+    ? LIBRARY_SEARCH_CHAT_LIMIT
+    : LIBRARY_SEARCH_GROUP_LIMIT;
+}
+
+interface ITextBudget {
+  bodyTextIndexed: boolean;
+  chatTextIndexed: boolean;
+}
+
+export function createLibrarySearchEngine(
+  engineOptions: ILibrarySearchEngineOptions = {},
+): ILibrarySearchEngine {
+  const now = engineOptions.now ?? Date.now;
+  const maxIndexedTextChars =
+    engineOptions.maxIndexedTextChars ?? LIBRARY_SEARCH_MAX_INDEXED_TEXT_CHARS;
   let records = new Map<string, ILocalSearchRecord>();
   let index = createIndex();
   let bodyTextIndexed = true;
+  let chatTextIndexed = true;
 
-  const totalTextChars = (): number => {
-    let total = 0;
-    for (const record of records.values()) total += record.text?.length ?? 0;
-    return total;
+  /** Document text gets the budget first; chat text only fits in what is left. */
+  const textBudget = (): ITextBudget => {
+    let documentChars = 0;
+    let chatChars = 0;
+    for (const record of records.values()) {
+      const length = record.text?.length ?? 0;
+      if (record.itemType === 'chat') chatChars += length;
+      else documentChars += length;
+    }
+    const bodyFits = documentChars <= maxIndexedTextChars;
+    return {
+      bodyTextIndexed: bodyFits,
+      chatTextIndexed:
+        bodyFits && documentChars + chatChars <= maxIndexedTextChars,
+    };
+  };
+
+  const indexedText = (record: ILocalSearchRecord): string => {
+    const indexed =
+      record.itemType === 'chat' ? chatTextIndexed : bodyTextIndexed;
+    return indexed ? (record.text ?? '') : '';
   };
 
   const toIndexed = (record: ILocalSearchRecord): IIndexedDocument => ({
@@ -121,11 +178,21 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
     title: record.title,
     description: record.description ?? '',
     tags: record.tags?.join(' ') ?? '',
-    text: bodyTextIndexed ? (record.text ?? '') : '',
+    text: indexedText(record),
   });
 
+  /** Score with the chat recency boost; other items keep their score. */
+  const rankScore = (record: ILocalSearchRecord, score: number): number => {
+    if (record.itemType !== 'chat' || record.lastActivityAt === undefined) {
+      return score;
+    }
+    const ageDays = Math.max(0, now() - record.lastActivityAt) / DAY_MS;
+    const recency = 0.5 ** (ageDays / CHAT_RECENCY_HALF_LIFE_DAYS);
+    return score * (1 + CHAT_RECENCY_MAX_BOOST * recency);
+  };
+
   const rebuild = async (): Promise<void> => {
-    bodyTextIndexed = totalTextChars() <= LIBRARY_SEARCH_MAX_INDEXED_TEXT_CHARS;
+    ({ bodyTextIndexed, chatTextIndexed } = textBudget());
     const next = createIndex();
     await next.addAllAsync([...records.values()].map(toIndexed), {
       chunkSize: BUILD_CHUNK_SIZE,
@@ -175,7 +242,7 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
         record.title,
         record.description ?? '',
         record.tags?.join(' ') ?? '',
-        bodyTextIndexed ? (record.text ?? '') : '',
+        indexedText(record),
       ].join('\n'),
     );
     return runs.every((run) => haystack.includes(run));
@@ -191,9 +258,11 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
       for (const id of removedIds) records.delete(id);
       for (const record of upserts) records.set(record.id, record);
 
-      const fitsNow =
-        totalTextChars() <= LIBRARY_SEARCH_MAX_INDEXED_TEXT_CHARS;
-      if (fitsNow !== bodyTextIndexed) {
+      const budget = textBudget();
+      if (
+        budget.bodyTextIndexed !== bodyTextIndexed ||
+        budget.chatTextIndexed !== chatTextIndexed
+      ) {
         await rebuild();
         return;
       }
@@ -236,7 +305,7 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
             {
               record,
               result,
-              fields,
+              score: rankScore(record, result.score),
               tier: rankTier(record, normalizedQuery, queryTerms, fields),
             },
           ];
@@ -244,7 +313,7 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
         .sort(
           (left, right) =>
             left.tier - right.tier ||
-            right.result.score - left.result.score ||
+            right.score - left.score ||
             left.record.title.localeCompare(right.record.title),
         );
 
@@ -252,10 +321,12 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
         directories: [],
         documents: [],
         artifacts: [],
+        chats: [],
       };
       for (const { record, result } of ranked) {
-        const group = results[groupOf(record)];
-        if (group.length >= LIBRARY_SEARCH_GROUP_LIMIT) continue;
+        const groupKey = groupOf(record);
+        const group = results[groupKey];
+        if (group.length >= groupLimit(groupKey)) continue;
 
         const hit: ILibrarySearchHit = {
           itemType: record.itemType,
@@ -266,6 +337,9 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
         if (record.directoryId) hit.directoryId = record.directoryId;
         if (record.generationStatus) {
           hit.generationStatus = record.generationStatus;
+        }
+        if (record.lastActivityAt !== undefined) {
+          hit.lastActivityAt = record.lastActivityAt;
         }
         // Show a passage only for what the name does not already explain:
         // words that matched the text but not the name.
@@ -293,6 +367,10 @@ export function createLibrarySearchEngine(): ILibrarySearchEngine {
 
     isBodyTextIndexed() {
       return bodyTextIndexed;
+    },
+
+    isChatTextIndexed() {
+      return chatTextIndexed;
     },
   };
 }

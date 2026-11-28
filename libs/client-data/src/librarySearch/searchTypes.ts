@@ -6,13 +6,15 @@ export interface ILocalSearchRecord {
   id: string;
   itemType: LibrarySearchItemType;
   sourceId: string;
-  /** Containing directory; for a directory, its parent. */
+  /** Containing directory; for a directory, its parent; for a chat, its home folder. */
   directoryId: string | null;
   title: string;
   description?: string;
   tags?: string[];
   text?: string;
   generationStatus?: LibrarySearchRecord['generationStatus'];
+  /** Chats only: epoch millis of the latest message. */
+  lastActivityAt?: number;
 }
 
 export interface ILibrarySearchSyncMeta {
@@ -87,18 +89,23 @@ export interface ILibrarySearchHit {
   /** Breadcrumb of the containing directory, e.g. "Biology › Cells". */
   path: string;
   generationStatus?: LibrarySearchRecord['generationStatus'];
-  /** Passage from the document body, when the body is what matched. */
+  /** Passage from the document body or chat messages, when that is what matched. */
   snippet?: ISearchSnippetSegment[];
+  /** Chats only: epoch millis of the latest message. */
+  lastActivityAt?: number;
 }
 
+/** Library sections, in display order. Chats are shown apart, after them. */
 export interface ILibrarySearchResults {
   directories: ILibrarySearchHit[];
   documents: ILibrarySearchHit[];
   artifacts: ILibrarySearchHit[];
+  chats: ILibrarySearchHit[];
 }
 
 export const EMPTY_LIBRARY_SEARCH_RESULTS: ILibrarySearchResults = {
   directories: [],
   documents: [],
   artifacts: [],
+  chats: [],
 };

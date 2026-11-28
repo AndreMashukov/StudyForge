@@ -107,6 +107,9 @@ export const fetchSearchRecordChanges: FetchSearchRecordChanges = async (
       if (record.generationStatus) {
         local.generationStatus = record.generationStatus;
       }
+      if (record.lastActivityAt !== undefined) {
+        local.lastActivityAt = record.lastActivityAt;
+      }
       changed.set(doc.id, local);
     }
 

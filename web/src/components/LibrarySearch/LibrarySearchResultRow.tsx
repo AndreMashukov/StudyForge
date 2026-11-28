@@ -6,12 +6,14 @@ import {
   Layers,
   ListChecks,
   ListOrdered,
+  MessageSquare,
   Presentation,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
 import type { LibrarySearchItemType } from '@shared-types';
 import { cn } from '../../lib/utils';
+import { formatDate } from '../../utils/dateUtils';
 import type { ILibrarySearchResultRow } from './ILibrarySearch';
 
 const ITEM_KINDS: Record<
@@ -26,6 +28,7 @@ const ITEM_KINDS: Record<
   diagramQuiz: { label: 'Diagram quiz', icon: Workflow },
   sequenceQuiz: { label: 'Sequence quiz', icon: ListOrdered },
   matchQuiz: { label: 'Match quiz', icon: ArrowLeftRight },
+  chat: { label: 'Chat', icon: MessageSquare },
 };
 
 const STATUS_LABELS = { pending: 'Generating…', failed: 'Failed' };
@@ -73,7 +76,15 @@ export const LibrarySearchResultRow: React.FC<ILibrarySearchResultRow> = ({
           ) : null}
         </div>
         <div className="truncate text-xs text-muted-foreground">
-          {[kind.label, hit.path].filter(Boolean).join(' · ')}
+          {[
+            kind.label,
+            hit.path,
+            hit.lastActivityAt !== undefined
+              ? formatDate(hit.lastActivityAt)
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         </div>
         {hit.snippet ? (
           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">

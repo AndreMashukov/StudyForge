@@ -30,6 +30,7 @@ const recordSchema = z.object({
   tags: z.array(z.string()).optional(),
   text: z.string().optional(),
   generationStatus: z.enum(['pending', 'completed', 'failed']).optional(),
+  lastActivityAt: z.number().optional(),
 });
 
 const metaSchema = z.object({

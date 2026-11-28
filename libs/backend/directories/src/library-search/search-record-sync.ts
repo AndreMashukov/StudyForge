@@ -1,12 +1,14 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { LibrarySearchItemType, LibrarySearchRecord } from '@shared-types';
 import {
+  CHAT_SEARCH_TEXT_MAX_CHARS,
   buildSearchRecord,
   buildSearchRecordTombstone,
   capSearchText,
   htmlToSearchText,
   isDocumentTextExpected,
   isSearchSourceDeleted,
+  joinChatSearchText,
   markdownToSearchText,
   type ISearchRecordText,
   type SearchSourceData,
@@ -28,6 +30,7 @@ const SOURCE_COLLECTIONS: Record<LibrarySearchItemType, string> = {
   diagramQuiz: 'diagramQuizzes',
   sequenceQuiz: 'sequenceQuizzes',
   matchQuiz: 'matchQuizzes',
+  chat: 'agentThreads',
 };
 
 export const SEARCH_RECORD_ITEM_TYPES: LibrarySearchItemType[] = [
@@ -39,9 +42,12 @@ export const SEARCH_RECORD_ITEM_TYPES: LibrarySearchItemType[] = [
   'diagramQuiz',
   'sequenceQuiz',
   'matchQuiz',
+  'chat',
 ];
 
 const SEARCH_RECORDS_COLLECTION = 'searchRecords';
+/** Messages read per page while filling a chat's search text. */
+const CHAT_MESSAGES_PAGE_SIZE = 50;
 const MAX_ATTEMPTS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -161,6 +167,42 @@ async function readDocumentText(
   return undefined;
 }
 
+/**
+ * Reads a chat's messages newest first, only as far back as the text cap
+ * reaches, and joins them oldest first.
+ */
+async function readChatText(
+  sourceRef: FirebaseFirestore.DocumentReference,
+): Promise<ISearchRecordText> {
+  const contents: string[] = [];
+  let collected = 0;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+
+  while (collected <= CHAT_SEARCH_TEXT_MAX_CHARS) {
+    let page: FirebaseFirestore.Query = sourceRef
+      .collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(CHAT_MESSAGES_PAGE_SIZE);
+    if (cursor) page = page.startAfter(cursor);
+    const snapshot = await page.get();
+
+    for (const doc of snapshot.docs) {
+      const content = doc.get('content');
+      if (typeof content === 'string') {
+        // Same plain text the join produces, so the stop point is exact.
+        const plain = markdownToSearchText(content);
+        if (plain.length === 0) continue;
+        contents.push(plain);
+        collected += plain.length + 1;
+      }
+    }
+    if (snapshot.docs.length < CHAT_MESSAGES_PAGE_SIZE) break;
+    cursor = snapshot.docs[snapshot.docs.length - 1];
+  }
+
+  return joinChatSearchText(contents);
+}
+
 function recordsMatch(
   current: FirebaseFirestore.DocumentData | undefined,
   desired: LibrarySearchRecord,
@@ -228,7 +270,9 @@ export async function syncSearchRecord(
             text:
               target.itemType === 'document'
                 ? await readDocumentText(deps, target, raw, existing)
-                : undefined,
+                : target.itemType === 'chat'
+                  ? await readChatText(sourceRef)
+                  : undefined,
           },
           deps.schemaVersion,
         );

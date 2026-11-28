@@ -1,8 +1,11 @@
 import type { LibrarySearchItemType } from '@shared-types';
 import { buildDirectoryPathWithOptionalName } from './directoryUrl';
 
+/** Item kinds that open on a page. A chat opens in the agent panel instead. */
+export type LibraryRouteItemType = Exclude<LibrarySearchItemType, 'chat'>;
+
 const ITEM_ROUTE_PREFIX: Record<
-  Exclude<LibrarySearchItemType, 'directory'>,
+  Exclude<LibraryRouteItemType, 'directory'>,
   string
 > = {
   document: '/document/',
@@ -15,7 +18,7 @@ const ITEM_ROUTE_PREFIX: Record<
 };
 
 export interface ILibraryItemLocation {
-  itemType: LibrarySearchItemType;
+  itemType: LibraryRouteItemType;
   id: string;
   title: string;
   directoryId?: string;
