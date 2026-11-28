@@ -245,7 +245,9 @@ export const MarkdownRenderer = ({
           if (deferRichBlocks) {
             return <RichBlockPlaceholder label="Drawing plot…" />;
           }
-          return <PlotlyGraph code={children.trim()} className="my-3" />;
+          // Explicit width: a chat bubble sizes to its content, and Plotly
+          // would otherwise autosize into a sliver beside a short reply.
+          return <PlotlyGraph code={children.trim()} className="my-3 w-[640px] max-w-full" />;
         }
 
         if (language) {
