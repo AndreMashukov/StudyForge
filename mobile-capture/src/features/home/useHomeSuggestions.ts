@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { DirectoryItemSummary } from '@shared-types';
 import {
   buildGroupedFlashcardFailures,
   fetchFlashcardStudySessionsPage,
@@ -40,13 +39,28 @@ export function summarizeMissedSets(
   );
 }
 
-function toMillis(
-  value: DirectoryItemSummary['createdAt'] | undefined,
-): number {
-  if (!value) return 0;
+/**
+ * A creation time in milliseconds, or 0 when it cannot be read. Directory
+ * items are restored from the persisted query cache as JSON, so a Firestore
+ * Timestamp may arrive as a plain `{ seconds, nanoseconds }` object without
+ * its methods; calling `toMillis()` on it crashed the home screen.
+ */
+export function toMillis(value: unknown): number {
   if (typeof value === 'string') return Date.parse(value) || 0;
   if (value instanceof Date) return value.getTime();
-  return value.toMillis();
+  if (typeof value !== 'object' || value === null) return 0;
+  if ('toMillis' in value && typeof value.toMillis === 'function') {
+    const millis: unknown = value.toMillis();
+    return typeof millis === 'number' ? millis : 0;
+  }
+  if ('seconds' in value && typeof value.seconds === 'number') {
+    const nanos =
+      'nanoseconds' in value && typeof value.nanoseconds === 'number'
+        ? value.nanoseconds
+        : 0;
+    return value.seconds * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  return 0;
 }
 
 function isoDaysAgo(days: number): string {
