@@ -38,12 +38,15 @@ export interface IDocumentBlock {
   alt?: string;
   /** For `placeholder` blocks: what the placeholder stands in for. */
   placeholderOf?: 'diagram' | 'interactive';
+  /** For `code` blocks: the fence's language tag, lower case (`language-ts` → `ts`). */
+  language?: string;
 }
 
 export type DocumentBlockFormat = 'html' | 'markdown';
 
 const INTERACTIVE_CLASS_RE = /\b(mermaid|diagram|interactive)\b/i;
 const MERMAID_CODE_CLASS_RE = /\b(language-mermaid|mermaid)\b/i;
+const CODE_LANGUAGE_CLASS_RE = /(?:^|\s)(?:language|lang)-([\w+#.-]+)/i;
 /** Blocks inside a quote or list item that keep their own kind. */
 const CONTAINED_BLOCK_TAGS = new Set(['pre', 'table', 'blockquote']);
 const INLINE_PLACEHOLDER_TEXT =
@@ -91,6 +94,25 @@ function collectInline(
     }
   }
   return spans;
+}
+
+/** The language tag on a `pre` or its `code` child, if any. */
+function codeBlockLanguage(
+  pre: Extract<IHtmlNode, { type: 'tag' | 'script' | 'style' }>,
+): string | undefined {
+  const classes = [
+    pre.attribs.class ?? '',
+    ...pre.children.map((child) =>
+      isElement(child) && child.name === 'code'
+        ? (child.attribs.class ?? '')
+        : '',
+    ),
+  ];
+  for (const value of classes) {
+    const match = CODE_LANGUAGE_CLASS_RE.exec(value);
+    if (match) return match[1].toLowerCase();
+  }
+  return undefined;
 }
 
 export function parseDocumentBlocks(
@@ -194,7 +216,8 @@ export function parseDocumentBlocks(
       } else if (tag === 'blockquote') {
         addContainer('quote', node.children, depth, {});
       } else if (tag === 'pre') {
-        add('code', node.children);
+        const language = codeBlockLanguage(node);
+        add('code', node.children, language ? { language } : {});
       } else if (tag === 'li') {
         addContainer('list', node.children, depth, { level: depth });
       } else if (tag === 'ul' || tag === 'ol') {

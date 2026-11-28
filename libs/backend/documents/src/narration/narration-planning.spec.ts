@@ -113,11 +113,44 @@ describe('narrationContentHash', () => {
           `<p>Intro.</p><pre><code>${code}</code></pre>`,
           'html',
         ),
+        1,
       );
     // Same spoken text ("Code example."), different amount of code.
     expect(narrationContentHash(script('x = 1'))).not.toBe(
       narrationContentHash(script('x = 1\n'.repeat(400))),
     );
+  });
+});
+
+describe('script version 1 is frozen', () => {
+  // Narrations made before spoken code keep their audio (ADR 020): their
+  // content hash and part keys must not change. Values recorded with the
+  // pre-ADR-020 builder; if this fails, the version-1 path changed.
+  const html = [
+    '<h2>Setup</h2>',
+    '<p>Install it with <code>npm install</code>, then open https://github.com/org/repo for commit 85a1b7a1 and id 3f2a9c1e-7b4d-4e2a-9c1e-0a1b2c3d4e5f.</p>',
+    '<pre><code class="language-ts">const user = getUserById(id);</code></pre>',
+    '<table><tr><td>a</td><td>b</td></tr></table>',
+    '<p>The handshake confirms both sides can send and receive data.</p>',
+  ].join('');
+  const script = buildNarrationScript(
+    'Guide',
+    parseDocumentBlocks(html, 'html'),
+    1,
+  );
+
+  it('keeps the content hash', () => {
+    expect(narrationContentHash(script)).toBe(
+      '98c844978b546df546c29ceafdd60c2190a5c6a70053f9cf95d4a48b862422e4',
+    );
+  });
+
+  it('keeps the part keys', () => {
+    expect(
+      keyNarrationParts(planNarrationParts(script), 'Kore', 'tts-model').map(
+        (part) => part.key,
+      ),
+    ).toEqual(['7ca2461ba3cfe4ddb7704cf5b08cf028']);
   });
 });
 

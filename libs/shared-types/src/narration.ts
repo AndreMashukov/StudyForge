@@ -1,5 +1,13 @@
 import { z } from 'zod';
 import { documentBlockText, type IDocumentBlock } from './document-blocks';
+import {
+  SPOKEN_CODE_MAX_CHARS,
+  isDataCodeLanguage,
+  speakCodeBlock,
+  speakInlineCode,
+  speakOpaqueStrings,
+  spokenCodeLanguage,
+} from './narration-speech';
 
 /**
  * Document narration (ADR 013): server-generated English audio of a narratable
@@ -11,8 +19,44 @@ import { documentBlockText, type IDocumentBlock } from './document-blocks';
  * Both are written only by Functions.
  */
 
-/** Bump when spoken text, part cutting or block parsing changes. */
+/**
+ * Bump when block parsing or part cutting changes: block indexes or part
+ * boundaries move. It is in every part key and narratable judgement, so a bump
+ * regenerates every narration. A change to what is spoken is a new
+ * `NARRATION_SCRIPT_VERSION` instead.
+ */
 export const NARRATION_SCHEMA_VERSION = 1;
+
+/**
+ * Spoken-text rules (ADR 020). 1: code blocks are a "Code example." marker and
+ * text is sent as written. 2: short code blocks are spoken code, and opaque
+ * strings become short phrases. A narration keeps the version it was made
+ * with; the version-1 path must not change.
+ */
+export const NARRATION_SCRIPT_VERSIONS = [1, 2] as const;
+export type NarrationScriptVersion = (typeof NARRATION_SCRIPT_VERSIONS)[number];
+export const NARRATION_SCRIPT_VERSION: NarrationScriptVersion = 2;
+
+function isNarrationScriptVersion(
+  value: number,
+): value is NarrationScriptVersion {
+  return NARRATION_SCRIPT_VERSIONS.some((version) => version === value);
+}
+
+/**
+ * The spoken-text rules a document is narrated with: its narration's, or the
+ * current rules when it has none. A narration from before versions were
+ * stored is version 1.
+ */
+export function narrationScriptVersionFor(
+  record: { scriptVersion?: number } | null | undefined,
+): NarrationScriptVersion {
+  if (!record) return NARRATION_SCRIPT_VERSION;
+  if (record.scriptVersion === undefined) return 1;
+  return isNarrationScriptVersion(record.scriptVersion)
+    ? record.scriptVersion
+    : NARRATION_SCRIPT_VERSION;
+}
 
 /** Credits are charged per this many characters of spoken text, rounded up. */
 export const NARRATION_CHARS_PER_CREDIT_UNIT = 1_000;
@@ -61,8 +105,11 @@ export interface INarrationSegment {
   /** Index into the document's blocks. */
   blockIndex: number;
   text: string;
-  /** `marker` stands in for blocks that are not read, such as code or a table. */
-  kind: 'prose' | 'marker';
+  /**
+   * `marker` stands in for blocks that are not read, such as a table or long
+   * code; `code` is spoken code (script version 2).
+   */
+  kind: 'prose' | 'code' | 'marker';
   /** A heading of level 1 or 2 starts a new section. */
   sectionStart?: boolean;
 }
@@ -75,6 +122,8 @@ export interface INarrationProseStats {
 }
 
 export interface INarrationScript {
+  /** The spoken-text rules it was built with. */
+  scriptVersion: NarrationScriptVersion;
   segments: INarrationSegment[];
   stats: INarrationProseStats;
   /** Characters of all segments, markers included. */
@@ -101,6 +150,43 @@ function blockProseText(block: IDocumentBlock): string {
   );
 }
 
+/** Inline code as words, keeping the whitespace around it so words do not run together. */
+function spokenInlineCode(text: string): string {
+  const lead = /^\s/.test(text) ? ' ' : '';
+  const trail = /\s$/.test(text) ? ' ' : '';
+  return `${lead}${speakInlineCode(text)}${trail}`;
+}
+
+/** Version 2: inline code is spoken code, the rest has opaque strings replaced. */
+function blockSpokenProseText(block: IDocumentBlock): string {
+  return normalizeSpokenText(
+    block.spans
+      .filter((span) => !span.placeholder)
+      .map((span) =>
+        span.code ? spokenInlineCode(span.text) : speakOpaqueStrings(span.text),
+      )
+      .join(''),
+  );
+}
+
+const LONG_CODE_LABEL = 'long code example';
+
+/**
+ * Version 2: a code block as spoken code, or the marker label it keeps
+ * (data, nothing to say, or longer than `SPOKEN_CODE_MAX_CHARS`).
+ */
+function spokenCodeBlock(
+  block: IDocumentBlock,
+): { text: string } | { label: string } {
+  if (isDataCodeLanguage(block.language)) return { label: 'code example' };
+  const body = speakCodeBlock(documentBlockText(block)).join(' ');
+  if (!body) return { label: 'code example' };
+  if (body.length > SPOKEN_CODE_MAX_CHARS) return { label: LONG_CODE_LABEL };
+  const language = spokenCodeLanguage(block.language);
+  const lead = language ? `Code example in ${language}.` : 'Code example.';
+  return { text: `${lead} ${body}` };
+}
+
 /** Headings and list items end with a full stop so they do not run on. */
 function withPause(text: string): string {
   return /[.!?:;…]$/.test(text) ? text : `${text}.`;
@@ -124,19 +210,33 @@ function joinLabels(labels: string[]): string {
   return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
 }
 
+/** Version 2: a marker that includes long code points the listener to the document. */
+function markerText(labels: string[], scriptVersion: NarrationScriptVersion) {
+  const text = capitalize(joinLabels(labels));
+  return scriptVersion >= 2 && labels.includes(LONG_CODE_LABEL)
+    ? `${text}, see the document.`
+    : withPause(text);
+}
+
 function capitalize(value: string): string {
   return value ? value[0].toUpperCase() + value.slice(1) : value;
 }
 
 /**
  * The words a narration speaks, in document order: the title, then headings,
- * paragraphs, quotes and list items. Each run of blocks that cannot be spoken
- * (code, tables, images, diagrams) becomes one short marker.
+ * paragraphs, quotes and list items, and (version 2) short code blocks as
+ * spoken code. Each run of blocks that cannot be spoken (long code, data,
+ * tables, images, diagrams) becomes one short marker.
+ *
+ * The prose stats are measured on the text as written under every version,
+ * so the narratable check does not depend on how code is spoken.
  */
 export function buildNarrationScript(
   title: string,
   blocks: IDocumentBlock[],
+  scriptVersion: NarrationScriptVersion = NARRATION_SCRIPT_VERSION,
 ): INarrationScript {
+  const speaks = scriptVersion >= 2;
   const segments: INarrationSegment[] = [];
   let proseChars = 0;
   let nonProseChars = 0;
@@ -147,7 +247,7 @@ export function buildNarrationScript(
     if (pendingLabels.length) {
       segments.push({
         blockIndex: pendingBlockIndex,
-        text: withPause(capitalize(joinLabels(pendingLabels))),
+        text: markerText(pendingLabels, scriptVersion),
         kind: 'marker',
       });
     }
@@ -155,7 +255,9 @@ export function buildNarrationScript(
     pendingBlockIndex = -1;
   };
 
-  const spokenTitle = normalizeSpokenText(title);
+  const spokenTitle = normalizeSpokenText(
+    speaks ? speakOpaqueStrings(title) : title,
+  );
   if (spokenTitle && blocks.length) {
     segments.push({
       blockIndex: 0,
@@ -170,10 +272,12 @@ export function buildNarrationScript(
       nonProseChars +=
         block.spans.filter((span) => span.placeholder).length *
         NON_TEXT_BLOCK_WEIGHT;
-      const text = blockProseText(block);
+      const written = blockProseText(block);
+      if (!written) return;
+      const text = speaks ? blockSpokenProseText(block) : written;
+      proseChars += written.length;
       if (!text) return;
       flushMarker();
-      proseChars += text.length;
       const isHeading = block.kind === 'heading';
       segments.push({
         blockIndex,
@@ -188,6 +292,18 @@ export function buildNarrationScript(
       block.kind === 'code' || block.kind === 'table'
         ? normalizeSpokenText(documentBlockText(block)).length
         : NON_TEXT_BLOCK_WEIGHT;
+    if (speaks && block.kind === 'code') {
+      const spoken = spokenCodeBlock(block);
+      if ('text' in spoken) {
+        flushMarker();
+        segments.push({ blockIndex, text: spoken.text, kind: 'code' });
+        return;
+      }
+      if (pendingBlockIndex < 0) pendingBlockIndex = blockIndex;
+      if (!pendingLabels.includes(spoken.label))
+        pendingLabels.push(spoken.label);
+      return;
+    }
     const label = markerLabel(block);
     if (pendingBlockIndex < 0) pendingBlockIndex = blockIndex;
     if (!pendingLabels.includes(label)) pendingLabels.push(label);
@@ -196,6 +312,7 @@ export function buildNarrationScript(
 
   const total = proseChars + nonProseChars;
   return {
+    scriptVersion,
     segments,
     stats: {
       proseChars,
@@ -427,6 +544,8 @@ export type NarrationStatus = z.output<typeof narrationStatusSchema>;
 export const narrationRecordSchema = z.object({
   documentId: z.string().min(1),
   schemaVersion: z.number().int(),
+  /** Spoken-text rules the parts were made with; missing means version 1. */
+  scriptVersion: z.number().int().optional(),
   model: z.string(),
   voice: z.string(),
   /** Hash of the spoken text the parts were planned from. */

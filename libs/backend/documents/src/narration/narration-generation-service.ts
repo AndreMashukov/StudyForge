@@ -6,6 +6,7 @@ import {
   NARRATION_AUDIO_CONTENT_TYPE,
   NARRATION_CHARS_PER_SECOND,
   NARRATION_SCHEMA_VERSION,
+  narrationScriptVersionFor,
   summarizeNarrationStatus,
   type NarrationPart,
   type NarrationQuote,
@@ -231,7 +232,13 @@ async function prepareNarration(
   const policy = context.setup.featurePolicies.documentNarration;
   if (!policy?.enabled) return unavailable('featureDisabled');
 
-  const source = await loadNarrationSource(userId, documentId);
+  let record = await readNarrationRecord(userId, documentId);
+  const source = await loadNarrationSource(
+    userId,
+    documentId,
+    undefined,
+    narrationScriptVersionFor(record),
+  );
   if (!isDocumentReadyForNarration(source.document))
     return unavailable('documentNotReady');
   if (
@@ -242,7 +249,6 @@ async function prepareNarration(
   if (source.document.narratability.status !== 'narratable')
     return unavailable('notNarratable');
 
-  let record = await readNarrationRecord(userId, documentId);
   if (record?.runId && isRunStale(record)) {
     const abandoned = await abandonStaleNarrationRun({
       userId,
@@ -433,6 +439,8 @@ export async function startDocumentNarration(
         transaction.set(recordRef, {
           documentId,
           schemaVersion: NARRATION_SCHEMA_VERSION,
+          // The rules the plan was made with; the narration keeps them (ADR 020).
+          scriptVersion: source.script.scriptVersion,
           model: route.model,
           voice: route.voice,
           contentHash: source.contentHash,
@@ -704,7 +712,12 @@ export async function runNarrationTask(
     if (record && record.runId === runId) {
       const [route, source] = await Promise.all([
         resolveNarrationSpeechRoute(userId),
-        loadNarrationSource(userId, documentId),
+        loadNarrationSource(
+          userId,
+          documentId,
+          undefined,
+          narrationScriptVersionFor(record),
+        ),
       ]);
       const byKey = new Map(
         keyNarrationParts(source.plan, route.voice, route.model).map((part) => [

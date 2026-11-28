@@ -1,16 +1,19 @@
 import {
   buildNarrationScript,
   documentNarratabilitySchema,
+  narrationScriptVersionFor,
   parseDocumentBlocks,
   planNarrationParts,
   type DocumentContentFormat,
   type DocumentNarratability,
   type INarrationPartPlan,
   type INarrationScript,
+  type NarrationScriptVersion,
 } from '@shared-types';
 import { FirestorePaths } from '@study-forge/backend-core/lib/firestore-paths';
 import { DocumentService } from '../document-storage';
 import { narrationContentHash } from './narration-planning';
+import { readNarrationRecord } from './narration-store';
 
 /** Document fields narration reads from the record. */
 export interface INarrationDocumentFields {
@@ -98,13 +101,23 @@ export async function readNarrationDocument(
   );
 }
 
-/** Builds the spoken text and part plan from a document's stored body. */
+/**
+ * Builds the spoken text and part plan from a document's stored body, with the
+ * spoken-text rules of its narration (ADR 020): a narration keeps the rules
+ * it was made with, so pass the version when the record is already read.
+ * Without one, the narration record is read to find it.
+ */
 export async function loadNarrationSource(
   userId: string,
   documentId: string,
   document?: INarrationDocumentFields,
+  scriptVersion?: NarrationScriptVersion,
 ): Promise<INarrationSource> {
-  const fields = document ?? (await readNarrationDocument(userId, documentId));
+  const [fields, version] = await Promise.all([
+    document ?? readNarrationDocument(userId, documentId),
+    scriptVersion ??
+      readNarrationRecord(userId, documentId).then(narrationScriptVersionFor),
+  ]);
   const stored = await DocumentService.getDocumentContentWithFormat(
     userId,
     documentId,
@@ -114,7 +127,7 @@ export async function loadNarrationSource(
     },
   );
   const blocks = parseDocumentBlocks(stored.content, stored.contentFormat);
-  const script = buildNarrationScript(fields.title, blocks);
+  const script = buildNarrationScript(fields.title, blocks, version);
   return {
     document: fields,
     script,
