@@ -3,9 +3,13 @@ import React, { useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkToc from 'remark-toc';
+import remarkMath from 'remark-math';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { IMarkdownRenderer, TocItem } from './IMarkdownRenderer';
 import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from '../MermaidDiagram';
+import { PlotlyGraph } from '../DocumentHtmlContent/PlotlyGraph';
 import { markdownStyles, getMarkdownClasses } from './MarkdownRenderer.styles';
 import { cn } from '../../lib/utils';
 
@@ -82,6 +86,23 @@ const generateTocFromContent = (content: string): TocItem[] => {
   return buildNestedToc(headings);
 };
 
+/** Shown instead of a diagram or plot while its code is still streaming in. */
+const RichBlockPlaceholder = ({ label }: { label: string }) => (
+  <div className="my-3 rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+    {label}
+  </div>
+);
+
+/** KaTeX HTML for one formula; errors render in red instead of throwing. */
+const renderMath = (tex: string, displayMode: boolean): string =>
+  katex.renderToString(tex, { displayMode, throwOnError: false, output: 'htmlAndMathml' });
+
+const isDisplayMathPre = (node: any): boolean => {
+  const child = node?.children?.[0];
+  const classes = child?.properties?.className;
+  return Array.isArray(classes) && classes.includes('language-math');
+};
+
 // Helper function to generate heading IDs
 const generateHeadingId = (children: React.ReactNode): string => {
   return String(children)
@@ -96,7 +117,9 @@ export const MarkdownRenderer = ({
   content, 
   className,
   showToc = true,
-  onTocGenerated 
+  onTocGenerated,
+  richContent = false,
+  deferRichBlocks = false,
 }: IMarkdownRenderer) => {
   
   // Generate TOC from content
@@ -196,9 +219,33 @@ export const MarkdownRenderer = ({
       const language = match ? match[1] : undefined;
       
       if (children && typeof children === 'string') {
+        // remark-math output (rich content only): $...$, $$...$$ and ```math
+        if (richContent && language === 'math') {
+          const displayMode = !(className || '').includes('math-inline');
+          return displayMode ? (
+            <div
+              className="my-3 overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: renderMath(children.trim(), true) }}
+            />
+          ) : (
+            <span dangerouslySetInnerHTML={{ __html: renderMath(children, false) }} />
+          );
+        }
+
         // Fenced mermaid block: ```mermaid
         if (language === 'mermaid') {
+          if (deferRichBlocks) {
+            return <RichBlockPlaceholder label="Drawing diagram…" />;
+          }
           return <MermaidDiagram code={children.trim()} enableWheelZoom={false} />;
+        }
+
+        // Fenced plot block (rich content only): ```plotly or ```graph
+        if (richContent && (language === 'plotly' || language === 'graph')) {
+          if (deferRichBlocks) {
+            return <RichBlockPlaceholder label="Drawing plot…" />;
+          }
+          return <PlotlyGraph code={children.trim()} className="my-3" />;
         }
 
         if (language) {
@@ -235,6 +282,14 @@ export const MarkdownRenderer = ({
       );
     },
     
+    // Display math and plots render their own block, not inside <pre>
+    pre: ({ children, node, ...props }: any) =>
+      richContent && isDisplayMathPre(node) ? (
+        <>{children}</>
+      ) : (
+        <pre {...props}>{children}</pre>
+      ),
+
     // Blockquote
     blockquote: ({ children, ...props }: any) => (
       <blockquote className={getMarkdownClasses('blockquote')} {...props}>
@@ -274,12 +329,12 @@ export const MarkdownRenderer = ({
         {...props}
       />
     ),
-  }), []);
+  }), [richContent, deferRichBlocks]);
 
   return (
     <div className={cn(markdownStyles.container, className)}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkToc]}
+        remarkPlugins={richContent ? [remarkGfm, remarkMath, remarkToc] : [remarkGfm, remarkToc]}
         components={components}
       >
         {content}

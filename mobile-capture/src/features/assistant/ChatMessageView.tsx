@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button, Spinner, Text } from '@studyforge/mobile-ui';
 import type { AgentProposedDelete } from '@shared-types';
+import { normalizeAgentReplyMarkdown } from '@shared-types';
 import { parseDocumentBlocks } from '../library/documentBlocks';
 import { ReaderBlock } from '../library/ReaderBlock';
 import {
@@ -16,6 +17,8 @@ import {
 import { ItemRow } from '../shell/ui';
 import { openLink } from '../library/ReaderBlock';
 import { replyCards, type IChatMessage } from './agentEvents';
+import { RichReplyView } from './RichReplyView';
+import { shouldUseRichReplyView } from './richReply';
 
 export function openLibraryItem(
   router: ReturnType<typeof useRouter>,
@@ -66,13 +69,22 @@ function DeleteProposalCard({ proposal }: { proposal: AgentProposedDelete }) {
 
 export function ChatMessageView({ message }: { message: IChatMessage }) {
   const router = useRouter();
-  const blocks = useMemo(
+  const replyMarkdown = useMemo(
     () =>
       message.role === 'assistant' && message.content
-        ? parseDocumentBlocks(message.content, 'markdown')
-        : [],
+        ? normalizeAgentReplyMarkdown(message.content)
+        : '',
     [message.content, message.role],
   );
+  const blocks = useMemo(
+    () => (replyMarkdown ? parseDocumentBlocks(replyMarkdown, 'markdown') : []),
+    [replyMarkdown],
+  );
+  const richReply = shouldUseRichReplyView({
+    role: message.role,
+    streaming: message.streaming,
+    normalizedContent: replyMarkdown,
+  });
   const cards = replyCards(message);
 
   if (message.role === 'user') {
@@ -88,6 +100,10 @@ export function ChatMessageView({ message }: { message: IChatMessage }) {
     );
   }
 
+  const nativeBlocks = blocks.map((block, index) => (
+    <ReaderBlock key={index} block={block} />
+  ));
+
   return (
     <View className="gap-1">
       {message.streaming ? (
@@ -98,9 +114,11 @@ export function ChatMessageView({ message }: { message: IChatMessage }) {
           </Text>
         </View>
       ) : null}
-      {blocks.map((block, index) => (
-        <ReaderBlock key={index} block={block} />
-      ))}
+      {richReply ? (
+        <RichReplyView markdown={replyMarkdown} fallback={nativeBlocks} />
+      ) : (
+        nativeBlocks
+      )}
       {message.stuck ? (
         <Text tone="muted" variant="caption">
           Still working. This is taking longer than usual.
