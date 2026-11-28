@@ -127,8 +127,38 @@ function normalizeProse(prose: string): string {
 }
 
 /** Repairs JSON-escape damage and normalizes math delimiters (see above). */
+const RICH_BLOCK_RE = /```[ \t]*(mermaid|plotly|graph)\b([\s\S]*?)```/g;
+
+/**
+ * A diagram or plot block is only a code block when its fences stand on lines
+ * of their own. Models sometimes write it inline (```plotly {...}```) or start
+ * the content on the fence line; markdown then shows it as inline code text.
+ * Rebuilds such blocks; well-formed ones are left alone.
+ */
+function repairRichBlocks(markdown: string): string {
+  return markdown.replace(
+    RICH_BLOCK_RE,
+    (whole, language: string, body: string, offset: number, text: string) => {
+      const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+      const opensLine = /^ {0,3}$/.test(text.slice(lineStart, offset));
+      const firstLineEnd = body.indexOf('\n');
+      const contentOnFenceLine =
+        firstLineEnd === -1 || body.slice(0, firstLineEnd).trim().length > 0;
+      const closesLine = /\n[ \t]*$/.test(body);
+      if (opensLine && !contentOnFenceLine && closesLine) {
+        return whole;
+      }
+      const code = body.trim();
+      if (!code) {
+        return whole;
+      }
+      return `\n\n\`\`\`${language}\n${code}\n\`\`\`\n\n`;
+    },
+  );
+}
+
 export function normalizeAgentReplyMarkdown(markdown: string): string {
-  return splitCode(markdown)
+  return splitCode(repairRichBlocks(markdown))
     .map((segment) => (segment.code ? segment.text : normalizeProse(segment.text)))
     .join('');
 }
