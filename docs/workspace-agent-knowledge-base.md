@@ -10,7 +10,7 @@ The workspace agent helps users manage their StudyForge library and generate lea
 
 Before generating anything, the agent must estimate:
 
-- how many documents it will create
+- the number of documents it will create
 - how many artifacts it will create
 - which artifact types it will create
 - the estimated credit cost
