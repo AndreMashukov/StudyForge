@@ -244,7 +244,7 @@ jobs:
         if: needs.plan.outputs.workspace_agent_knowledge == 'true'
         run: yarn --silent tsx scripts/release/execute.ts workspace-agent-knowledge --plan .release/plan.json
         env:
-          RELEASE_WORKSPACE_KNOWLEDGE_USER_ID: ${{ vars.RELEASE_WORKSPACE_KNOWLEDGE_USER_ID }}
+          RELEASE_WORKSPACE_KNOWLEDGE_USER_ID: ${{ secrets.RELEASE_WORKSPACE_KNOWLEDGE_USER_ID }}
 
       - name: 7. Web (Hosting)
         if: needs.plan.outputs.web == 'true'
