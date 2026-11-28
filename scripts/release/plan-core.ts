@@ -2,7 +2,7 @@
  * Pure Release plan logic: validate an LLM proposal against the facts, then merge it with
  * the deterministic floor. Nothing here touches the network or the filesystem.
  */
-import { LLM_IAM_ALLOWLIST, LLM_MAX_WARNINGS, PROJECT_NUMBER } from './config';
+import { LLM_IAM_ALLOWLIST, LLM_MAX_WARNINGS, PROJECT_NUMBER, WORKSPACE_AGENT_KNOWLEDGE_PATH } from './config';
 import {
   llmProposalSchema,
   type FunctionSource,
@@ -201,6 +201,10 @@ export function mergePlan(facts: IReleaseFacts, proposal: LlmProposal | null, mo
   if (facts.migrations.ledgerSeeded === false) {
     blockers.push('The Migration ledger is not seeded. Run `tsx scripts/release/seed-migration-ledger.ts --write` once.');
   }
+  const knowledge = facts.workspaceAgentKnowledge;
+  if (knowledge.status === 'invalid') {
+    blockers.push(`Restore non-empty Markdown at \`${WORKSPACE_AGENT_KNOWLEDGE_PATH}\` before publishing Platform agent knowledge.`);
+  }
 
   return {
     version: 1,
@@ -215,6 +219,7 @@ export function mergePlan(facts: IReleaseFacts, proposal: LlmProposal | null, mo
     functions: plannedFunctions,
     iamGrants,
     migrations: selected,
+    workspaceAgentKnowledgeHash: knowledge.status === 'publish' ? knowledge.contentHash : null,
     manualActions,
     warnings,
     blockers,

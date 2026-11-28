@@ -46,6 +46,9 @@ export interface IReleaseFacts {
   changedFiles: string[];
   web: { deploy: boolean; reasons: string[] };
   rules: { firestoreRules: boolean; firestoreIndexes: boolean; storageRules: boolean };
+  workspaceAgentKnowledge:
+    | { status: 'unchanged' | 'invalid' }
+    | { status: 'publish'; contentHash: string };
   functions: {
     exports: IFunctionExport[];
     forceAll: { value: boolean; reasons: string[] };
@@ -138,6 +141,7 @@ export interface IReleasePlan {
   functions: IPlannedFunction[];
   iamGrants: IPlannedIamGrant[];
   migrations: IPlannedMigration[];
+  workspaceAgentKnowledgeHash: string | null;
   /** Things the pipeline will never do itself — a human must. */
   manualActions: string[];
   warnings: string[];

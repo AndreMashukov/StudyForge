@@ -1,6 +1,6 @@
 # Release pipeline
 
-`.github/workflows/release.yml` ships the web app, Cloud Functions, Firestore rules and indexes, and migrations to `study-forge-202604`. The reasoning behind it is in [ADR 009](../../docs/adr/009-llm-proposed-release-plan.md), and the terms are defined under **Release** in `CONTEXT.md`.
+`.github/workflows/release.yml` ships the web app, Cloud Functions, Firestore rules and indexes, migrations, and Platform agent knowledge to `study-forge-202604`. The reasoning behind it is in [ADR 009](../../docs/adr/009-llm-proposed-release-plan.md), and the terms are defined under **Release** in `CONTEXT.md`.
 
 | Event | What runs |
 |---|---|
@@ -25,6 +25,7 @@ facts.ts  ── deterministic ──►  facts.json  ──►  plan.ts ──�
 | Decision | Who decides |
 |---|---|
 | Deploy web / rules / indexes | Code |
+| Publish and re-index Platform agent knowledge | Code checks whether `docs/workspace-agent-knowledge-base.md` changed and gives the LLM the result for its summary. |
 | Functions: import-graph hits, new exports, force-all | Code (the floor; the LLM can't remove from it) |
 | Extra functions the graph can't see | LLM (must be real exports) |
 | Public `run.invoker` for new callable/HTTPS functions (not for HTTPS functions whose `invoker` option is non-public) | Code |
@@ -33,7 +34,7 @@ facts.ts  ── deterministic ──►  facts.json  ──►  plan.ts ──�
 | Migration phase | The script's own tag |
 | Deleting functions or indexes, project-level IAM | Nobody. Listed as **manual action needed**. |
 
-**Blockers** fail the release before anything deploys: a secret is missing from Secret Manager for a planned function, or the Migration ledger hasn't been seeded. An LLM failure also fails the release.
+**Blockers** fail the release before anything deploys. They include a missing secret for a planned function, an unseeded Migration ledger, or a changed knowledge source that was deleted or emptied. An LLM failure also fails the release.
 
 ## Deploy order
 
@@ -44,7 +45,10 @@ Each step runs only if the previous one succeeded. There's no automatic rollback
 3. Functions, always as an explicit `--only functions:a,functions:b` list.
 4. IAM grants.
 5. `post-functions` migrations.
-6. Web (Hosting).
+6. Platform agent knowledge, when `docs/workspace-agent-knowledge-base.md` changed. The release publishes the Markdown to Firestore and waits for `indexPlatformAgentKnowledgeDocument` to index that revision.
+7. Web (Hosting).
+
+Knowledge publishing uses the existing document's publisher to resolve the embedding route. Set the Actions variable `RELEASE_WORKSPACE_KNOWLEDGE_USER_ID` for the first publication or to select a different publisher. The user needs a Firestore user group with an `agentKnowledgeEmbedding` route.
 
 ## First-time setup
 

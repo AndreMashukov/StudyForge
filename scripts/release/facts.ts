@@ -17,6 +17,7 @@ import {
   PROJECT_ID,
   REGION,
   RULES_FILES,
+  WORKSPACE_AGENT_KNOWLEDGE_PATH,
 } from './config';
 import { hasFlag, requireArg, runOrThrow } from './exec';
 import {
@@ -32,6 +33,7 @@ import {
 import { changedFiles, diffExcerpt, fileAt } from './git';
 import { listMigrationScripts, readLedger, readMigration } from './migrations';
 import type { IFunctionExport, IGraphHit, IPendingMigration, IReleaseFacts } from './schema';
+import { workspaceAgentKnowledgeFacts } from './workspace-agent-knowledge';
 
 function jsonSection(source: string | null, key: string): string {
   if (source === null) return '<missing>';
@@ -208,6 +210,7 @@ async function main(): Promise<void> {
       firestoreIndexes: deployAll || changedSet.has(RULES_FILES.firestoreIndexes),
       storageRules: deployAll || changedSet.has(RULES_FILES.storageRules),
     },
+    workspaceAgentKnowledge: workspaceAgentKnowledgeFacts(changedSet, () => fileAt(headSha, WORKSPACE_AGENT_KNOWLEDGE_PATH)),
     functions: {
       exports,
       forceAll: { value: forceAllReasons.length > 0, reasons: forceAllReasons },

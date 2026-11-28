@@ -15,7 +15,7 @@ Functions were deployed by hand, and CI only deployed Hosting. All functions shi
 - **Deterministic facts**: web vs. functions (nx affected), rules and index file changes, and each function export's import closure. The closure comes from the esbuild metafile and ignores type-only edits. Code also reads the deployed functions, the secrets, and the **Migration ledger**.
 - **LLM proposal**: MiniMax M3.1 Flash on Together AI, called through `@anthropic-ai/sdk` against Together's Anthropic-compatible `/v1/messages`. It is one call with no tools, and it may only *add*: extra functions, allowlisted resource-level IAM grants, and which tagged pending migrations to run.
 
-Code validates the proposal against allowlists and merges it with the deterministic floor. The LLM can't remove a graph-affected function, choose a migration's **Release phase**, or issue a free-form command. The result runs **unattended** in a fixed order: rules/indexes (not awaited) → pre-functions migrations → functions → IAM → post-functions migrations → web.
+Code validates the proposal against allowlists and merges it with the deterministic floor. The LLM can't remove a graph-affected function, choose a migration's **Release phase**, or issue a free-form command. The result runs **unattended** in a fixed order: rules/indexes (not awaited) → pre-functions migrations → functions → IAM → post-functions migrations → Platform agent knowledge publishing and indexing → web. The plan schedules knowledge publishing when `docs/workspace-agent-knowledge-base.md` changes.
 
 ## Considered Options
 

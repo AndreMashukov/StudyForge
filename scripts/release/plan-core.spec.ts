@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { PROJECT_NUMBER } from './config';
+import { PROJECT_NUMBER, WORKSPACE_AGENT_KNOWLEDGE_PATH } from './config';
 import { isAllowedMember, mergePlan, validateProposal } from './plan-core';
+import { renderPlanMarkdown } from './render';
 import type { IFunctionExport, IReleaseFacts } from './schema';
+import { workspaceAgentKnowledgeFacts } from './workspace-agent-knowledge';
 
 const PROJECT = 'study-forge-202604';
 
@@ -19,6 +21,7 @@ function facts(overrides: Partial<IReleaseFacts> = {}): IReleaseFacts {
     changedFiles: ['functions/src/endpoints/quizzes.ts'],
     web: { deploy: false, reasons: [] },
     rules: { firestoreRules: false, firestoreIndexes: false, storageRules: false },
+    workspaceAgentKnowledge: { status: 'unchanged' },
     functions: {
       exports: [fn('generateQuiz'), fn('healthCheck', { trigger: 'https' }), fn('newEndpoint', { deployed: false })],
       forceAll: { value: false, reasons: [] },
@@ -131,6 +134,35 @@ describe('isAllowedMember', () => {
 });
 
 describe('mergePlan', () => {
+  it('schedules knowledge publishing and re-indexing even when the LLM only returns a summary', () => {
+    const changedFiles = [WORKSPACE_AGENT_KNOWLEDGE_PATH];
+    const workspaceAgentKnowledge = workspaceAgentKnowledgeFacts(new Set(changedFiles), () => 'abc\n');
+    const plan = mergePlan(facts({ changedFiles, workspaceAgentKnowledge }), emptyProposal, 'model');
+
+    expect(plan.workspaceAgentKnowledgeHash).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    expect(renderPlanMarkdown(plan, { preview: true })).toContain(
+      `Publish changes from \`${WORKSPACE_AGENT_KNOWLEDGE_PATH}\` to Firestore and wait for re-indexing.`,
+    );
+  });
+
+  it('skips knowledge publishing for other documents', () => {
+    const changedFiles = [`${WORKSPACE_AGENT_KNOWLEDGE_PATH}.bak`, 'docs/other.md'];
+    const workspaceAgentKnowledge = workspaceAgentKnowledgeFacts(new Set(changedFiles), () => 'abc');
+    const plan = mergePlan(facts({ changedFiles, workspaceAgentKnowledge }), emptyProposal, 'model');
+
+    expect(plan.workspaceAgentKnowledgeHash).toBeNull();
+    expect(renderPlanMarkdown(plan, { preview: true })).not.toContain('Platform agent knowledge');
+  });
+
+  it.each([null, '\n '])('blocks a changed knowledge source with no content (%j)', (source) => {
+    const changedFiles = [WORKSPACE_AGENT_KNOWLEDGE_PATH];
+    const workspaceAgentKnowledge = workspaceAgentKnowledgeFacts(new Set(changedFiles), () => source);
+    const plan = mergePlan(facts({ changedFiles, workspaceAgentKnowledge }), emptyProposal, 'model');
+
+    expect(plan.workspaceAgentKnowledgeHash).toBeNull();
+    expect(plan.blockers).toEqual([expect.stringContaining(WORKSPACE_AGENT_KNOWLEDGE_PATH)]);
+  });
+
   it('keeps the graph floor and new exports, and adds the public invoker for new callables', () => {
     const plan = mergePlan(facts(), emptyProposal, 'model');
     expect(plan.functions.map((entry) => entry.name)).toEqual(['generateQuiz', 'newEndpoint']);

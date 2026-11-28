@@ -8,6 +8,7 @@
  *   tsx scripts/release/execute.ts migrations --plan … --phase pre-functions|post-functions
  *   tsx scripts/release/execute.ts functions  --plan …
  *   tsx scripts/release/execute.ts iam        --plan …
+ *   tsx scripts/release/execute.ts workspace-agent-knowledge --plan …
  *   tsx scripts/release/execute.ts hosting    --plan …
  */
 import { spawn } from 'node:child_process';
@@ -18,6 +19,7 @@ import { readArg, requireArg, runOrThrow } from './exec';
 import { isApplied, recordApplied } from './migrations';
 import { TASK_QUEUE_PATTERN, TOPIC_PATTERN } from './plan-core';
 import { MIGRATION_PHASES, type IReleasePlan, type MigrationPhase } from './schema';
+import { publishWorkspaceAgentKnowledge } from './workspace-agent-knowledge';
 
 const FIREBASE = './node_modules/.bin/firebase';
 const TSX = './node_modules/.bin/tsx';
@@ -78,6 +80,7 @@ function writeOutputs(plan: IReleasePlan): void {
     iam: String(plan.iamGrants.length > 0),
     migrations_pre: String(plan.migrations.some((entry) => entry.phase === 'pre-functions')),
     migrations_post: String(plan.migrations.some((entry) => entry.phase === 'post-functions')),
+    workspace_agent_knowledge: String(Boolean(plan.workspaceAgentKnowledgeHash)),
   };
   const text = Object.entries(lines).map(([key, value]) => `${key}=${value}`).join('\n');
   if (target) appendFileSync(target, `${text}\n`);
@@ -184,10 +187,15 @@ async function main(): Promise<void> {
       return deployFunctions(plan);
     case 'iam':
       return grantIam(plan);
+    case 'workspace-agent-knowledge':
+      if (plan.workspaceAgentKnowledgeHash) {
+        await publishWorkspaceAgentKnowledge(PROJECT_ID, plan.workspaceAgentKnowledgeHash);
+      }
+      return;
     case 'hosting':
       return deployHosting(plan);
     default:
-      throw new Error(`Unknown step "${step}". Use outputs|rules|migrations|functions|iam|hosting.`);
+      throw new Error(`Unknown step "${step}". Use outputs|rules|migrations|functions|iam|workspace-agent-knowledge|hosting.`);
   }
 }
 

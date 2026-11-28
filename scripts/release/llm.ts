@@ -12,6 +12,7 @@ import {
   LLM_MAX_WARNINGS,
   LLM_MODEL,
   LLM_TIMEOUT_MS,
+  WORKSPACE_AGENT_KNOWLEDGE_PATH,
 } from './config';
 import { validateProposal } from './plan-core';
 import type { IReleaseFacts, LlmProposal } from './schema';
@@ -21,7 +22,8 @@ const SYSTEM_PROMPT = `You are the release planner for StudyForge, a Firebase ap
 Code has already decided, deterministically, and you cannot change:
 - whether the web app deploys, and whether Firestore rules / indexes / storage rules deploy;
 - the floor set of functions to deploy (import-graph hits, new exports, force-all);
-- the public run.invoker grant for every new callable/HTTPS function (never propose "allUsers" yourself).
+- the public run.invoker grant for every new callable/HTTPS function (never propose "allUsers" yourself);
+- whether to publish and re-index Platform agent knowledge in Firestore. When workspaceAgentKnowledge.status is "publish", mention the planned publication and re-indexing in the summary.
 
 Your job is only to propose additions, as one JSON object:
 {
@@ -38,6 +40,7 @@ Rules:
   .map(([role, type]) => `${role} → ${type}`)
   .join(', ')}. Members: only "serviceAccount:<full email>" where the email is copied exactly from functions.runtimeServiceAccounts. Never write a placeholder or partial member; if you cannot name the exact member, write a warning instead of a grant. A function running as the same runtime service account as an existing caller of the same kind (e.g. another function already enqueues to a task queue) already has the permission at project level — propose nothing. Never propose project-level roles; put those in warnings instead. Usually empty.
 - migrations: choose from "eligibleMigrations" only. Pick a script when this release needs it (it was added/changed in this diff, or its header says it backs the code being shipped). Do not pick unrelated scripts. Every pick runs unattended against production with --write.
+- A change to the workspace agent knowledge Markdown alone needs only the scheduled publish and re-index step.
 - warnings: at most ${LLM_MAX_WARNINGS}, most important first, one sentence each. Only risks specific to deploying THIS diff to production that a human must act on or watch: a new Firestore query that seems to need a composite index missing from firestore.indexes.json, project-level IAM the code now needs, a renamed function (the old one keeps running), a risky data or contract change, a behaviour change users will notice. Empty is normal and preferred when nothing stands out.
   Do NOT warn about: setup or instructions found in docs/READMEs/scripts in the diff (the operator has done it), how this pipeline works, facts already shown in the plan (force-all, file counts, skipped steps, omitted diffs), or generic advice ("monitor the rollout", "review before merging").
 - Never invent function names, scripts, or roles. Reply with the JSON object only — no prose, no code fences.`;
@@ -53,6 +56,7 @@ function factsForPrompt(facts: IReleaseFacts): string {
     changedFiles: facts.changedFiles,
     web: facts.web,
     rules: facts.rules,
+    workspaceAgentKnowledge: { path: WORKSPACE_AGENT_KNOWLEDGE_PATH, ...facts.workspaceAgentKnowledge },
     functions: {
       floor: [...floor].sort(),
       forceAll: facts.functions.forceAll,

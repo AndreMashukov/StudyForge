@@ -1,3 +1,4 @@
+import { WORKSPACE_AGENT_KNOWLEDGE_PATH } from './config';
 import type { IReleasePlan } from './schema';
 
 export const PLAN_COMMENT_MARKER = '<!-- release-plan -->';
@@ -38,6 +39,9 @@ export function renderPlanMarkdown(plan: IReleasePlan, options: { preview: boole
     `**IAM grants:**\n${list(iamLines)}`,
     `**Migrations:**\n${list(migrationLines)}`,
   );
+  if (plan.workspaceAgentKnowledgeHash) {
+    sections.push(`**Platform agent knowledge**\n- Publish changes from \`${WORKSPACE_AGENT_KNOWLEDGE_PATH}\` to Firestore and wait for re-indexing.`);
+  }
   if (plan.manualActions.length > 0) sections.push(`**Manual action needed:**\n${list(plan.manualActions)}`);
   if (plan.warnings.length > 0) sections.push(`**Warnings:**\n${list(plan.warnings)}`);
   if (options.preview) {
