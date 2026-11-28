@@ -37,6 +37,17 @@ describe('normalizeAgentReplyMarkdown', () => {
     expect(normalizeAgentReplyMarkdown('Mid $$x$$ sentence')).toBe('Mid $$x$$ sentence');
   });
 
+  it('rebuilds diagram and plot blocks written on one line', () => {
+    const json = '{"data":[{"x":[1,2],"y":[3,4]}]}';
+    expect(normalizeAgentReplyMarkdown(`Shape:\n\n\`\`\`plotly ${json}\`\`\`\n\nNext.`)).toBe(
+      `Shape:\n\n\n\n\`\`\`plotly\n${json}\n\`\`\`\n\n\n\nNext.`,
+    );
+    expect(normalizeAgentReplyMarkdown('See ```mermaid\nflowchart LR\n  A --> B\n```')).toContain(
+      '\n```mermaid\nflowchart LR\n  A --> B\n```',
+    );
+    expect(agentReplyNeedsRichView(normalizeAgentReplyMarkdown(`x \`\`\`plotly ${json}\`\`\``))).toBe(true);
+  });
+
   it('leaves code blocks and inline code alone', () => {
     const fenced = '```js\nconst s = "\\(x\\)";\n\t\f\n```\nUse `\\(a\\)` here.';
     expect(normalizeAgentReplyMarkdown(fenced)).toBe(fenced);
