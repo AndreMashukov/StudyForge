@@ -48,7 +48,7 @@ Each step runs only if the previous one succeeded. There's no automatic rollback
 6. Platform agent knowledge, when `docs/workspace-agent-knowledge-base.md` changed. The release publishes the Markdown to Firestore and waits for `indexPlatformAgentKnowledgeDocument` to index that revision.
 7. Web (Hosting).
 
-Knowledge publishing uses the existing document's publisher to resolve the embedding route. Set the `RELEASE_WORKSPACE_KNOWLEDGE_USER_ID` Actions secret in the `production` environment for the first publication or to select a different publisher. The user needs a Firestore user group with an `agentKnowledgeEmbedding` route.
+Set the `RELEASE_WORKSPACE_KNOWLEDGE_DOCUMENT_ID` Actions secret in the `production` environment to the ID of the original document in `platformAgentKnowledgeDocuments`. The release updates that record in place and fails if the configured document is missing. It uses the document's existing publisher to resolve the embedding route. The optional `RELEASE_WORKSPACE_KNOWLEDGE_USER_ID` secret selects a different publisher, whose Firestore user group needs an `agentKnowledgeEmbedding` route.
 
 ## First-time setup
 

@@ -26,7 +26,8 @@ Production deploys via GitHub Actions on push to `main` — see `scripts/release
 | `GCP_WIF_PROVIDER` (variable) | Workload Identity Federation provider — from `scripts/release/setup-release-identity.sh` |
 | `GCP_RELEASE_SA` (variable) | Deploy service account (main only) |
 | `GCP_RELEASE_PREVIEW_SA` (variable) | Read-only planner service account (PR previews + plan job) |
-| `RELEASE_WORKSPACE_KNOWLEDGE_USER_ID` (production environment secret) | Firebase user with an `agentKnowledgeEmbedding` route for publishing Platform agent knowledge |
+| `RELEASE_WORKSPACE_KNOWLEDGE_DOCUMENT_ID` (production environment secret) | ID of the existing Firestore document updated by Platform agent knowledge releases |
+| `RELEASE_WORKSPACE_KNOWLEDGE_USER_ID` (optional production environment secret) | Firebase user with an `agentKnowledgeEmbedding` route for publishing Platform agent knowledge |
 | `NX_PUBLIC_FIREBASE_API_KEY` | Client Firebase config |
 | `NX_PUBLIC_FIREBASE_APP_ID` | Client Firebase config |
 | `NX_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client Firebase config |

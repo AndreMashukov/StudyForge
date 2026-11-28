@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { setTimeout } from 'node:timers/promises';
 import { deleteApp, initializeApp } from 'firebase-admin/app';
 import { FieldValue, getFirestore, type DocumentReference } from 'firebase-admin/firestore';
-import { WORKSPACE_AGENT_KNOWLEDGE_ID, WORKSPACE_AGENT_KNOWLEDGE_PATH } from './config';
+import { WORKSPACE_AGENT_KNOWLEDGE_PATH } from './config';
 import type { IReleaseFacts } from './schema';
 
 const INDEX_WAIT_MS = 5 * 60_000;
@@ -29,12 +29,14 @@ async function requestIndexing(
   contentHash: string,
 ): Promise<'indexed' | 'indexing' | 'reset'> {
   return doc.firestore.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(doc);
-    const current = snapshot.data();
-    const isSameRevision = current?.status === 'published' && current.publishedContentHash === contentHash;
+    const current = (await transaction.get(doc)).data();
+    if (!current) {
+      throw new Error('The Firestore document configured by RELEASE_WORKSPACE_KNOWLEDGE_DOCUMENT_ID does not exist.');
+    }
+    const isSameRevision = current.status === 'published' && current.publishedContentHash === contentHash;
     if (isSameRevision && current.indexingStatus === 'indexed') return 'indexed';
 
-    const alreadyIndexing = current?.indexingStatus === 'indexing';
+    const alreadyIndexing = current.indexingStatus === 'indexing';
     if (alreadyIndexing) {
       const publishedAt = typeof current.publishedAt === 'string' ? Date.parse(current.publishedAt) : NaN;
       if (Date.now() - publishedAt < STALLED_INDEXING_MS) {
@@ -44,7 +46,7 @@ async function requestIndexing(
     }
 
     const configuredUser = process.env.RELEASE_WORKSPACE_KNOWLEDGE_USER_ID?.trim();
-    const previousPublisher = typeof current?.publishedBy === 'string' ? current.publishedBy.trim() : '';
+    const previousPublisher = typeof current.publishedBy === 'string' ? current.publishedBy.trim() : '';
     const publishedBy = configuredUser || previousPublisher;
     if (!publishedBy || publishedBy.includes('/')) {
       throw new Error('Set RELEASE_WORKSPACE_KNOWLEDGE_USER_ID to a user with an agentKnowledgeEmbedding route.');
@@ -62,25 +64,18 @@ async function requestIndexing(
     }
 
     const now = new Date().toISOString();
-    transaction.set(
-      doc,
-      {
-        id: WORKSPACE_AGENT_KNOWLEDGE_ID,
-        title: typeof current?.title === 'string' ? current.title : 'Workspace agent knowledge base',
-        ...(snapshot.exists ? {} : { tags: ['workspace-agent', 'generation-policy', 'credits'] }),
-        bodyMarkdown,
-        status: 'published',
-        publishedContentHash: contentHash,
-        publishedBy,
-        publishedAt: now,
-        updatedAt: now,
-        updatedBy: publishedBy,
-        indexingStatus: 'indexing',
-        indexingError: FieldValue.delete(),
-        indexedAt: FieldValue.delete(),
-      },
-      { merge: true },
-    );
+    transaction.update(doc, {
+      bodyMarkdown,
+      status: 'published',
+      publishedContentHash: contentHash,
+      publishedBy,
+      publishedAt: now,
+      updatedAt: now,
+      updatedBy: publishedBy,
+      indexingStatus: 'indexing',
+      indexingError: FieldValue.delete(),
+      indexedAt: FieldValue.delete(),
+    });
     return 'indexing';
   });
 }
@@ -107,9 +102,14 @@ export async function publishWorkspaceAgentKnowledge(projectId: string, contentH
     throw new Error(`The contents of ${WORKSPACE_AGENT_KNOWLEDGE_PATH} do not match the release plan.`);
   }
 
+  const documentId = process.env.RELEASE_WORKSPACE_KNOWLEDGE_DOCUMENT_ID?.trim();
+  if (!documentId || documentId.includes('/') || documentId === '.' || documentId === '..') {
+    throw new Error('Set RELEASE_WORKSPACE_KNOWLEDGE_DOCUMENT_ID to the existing Firestore knowledge document ID.');
+  }
+
   const app = initializeApp({ projectId });
   try {
-    const doc = getFirestore(app).collection('platformAgentKnowledgeDocuments').doc(WORKSPACE_AGENT_KNOWLEDGE_ID);
+    const doc = getFirestore(app).collection('platformAgentKnowledgeDocuments').doc(documentId);
     let state = await requestIndexing(doc, bodyMarkdown, contentHash);
     if (state === 'reset') state = await requestIndexing(doc, bodyMarkdown, contentHash);
     if (state === 'reset') throw new Error('A stalled workspace agent knowledge publication changed during the retry.');

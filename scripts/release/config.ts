@@ -21,8 +21,7 @@ export const LLM_MAX_WARNINGS = 5;
 export const FUNCTIONS_ENTRY = 'functions/src/index.ts';
 export const FUNCTIONS_BUNDLE = 'functions/lib/src/index.js';
 export const MIGRATIONS_DIR = 'scripts/migrations';
-export const WORKSPACE_AGENT_KNOWLEDGE_ID = 'workspace-agent-knowledge-base';
-export const WORKSPACE_AGENT_KNOWLEDGE_PATH = `docs/${WORKSPACE_AGENT_KNOWLEDGE_ID}.md`;
+export const WORKSPACE_AGENT_KNOWLEDGE_PATH = 'docs/workspace-agent-knowledge-base.md';
 
 /** Firestore collections (Admin SDK only; no client rule matches them, so clients are denied). */
 export const LEDGER_COLLECTION = '_releaseMigrations';
