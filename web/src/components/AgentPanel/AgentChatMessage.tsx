@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AgentProposedDelete } from '@shared-types';
+import { normalizeAgentReplyMarkdown } from '@shared-types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { Spinner } from '../ui/Spinner';
 import { cn } from '../../lib/utils';
@@ -36,7 +37,9 @@ export const AgentChatMessage: React.FC<IAgentChatMessage> = ({
 }) => {
   const isAssistant = entry.role === 'assistant';
   const isLive = Boolean(entry.live);
-  const content = stripAgentThinkingContent(entry.content);
+  const content = isAssistant
+    ? normalizeAgentReplyMarkdown(stripAgentThinkingContent(entry.content))
+    : stripAgentThinkingContent(entry.content);
   const shownContent = useSmoothedText(content, isLive);
   const statusLabel = entry.turnStatus
     ? TURN_STATUS_LABELS[entry.turnStatus]
@@ -82,6 +85,8 @@ export const AgentChatMessage: React.FC<IAgentChatMessage> = ({
           shownContent.trim().length > 0 ? (
             <MarkdownRenderer
               content={shownContent}
+              richContent
+              deferRichBlocks={isLive}
               className="[&_p:last-child]:!mb-0 [&_ul:last-child]:!mb-0 [&_ol:last-child]:!mb-0 [&_blockquote:last-child]:!mb-0 [&_>div:last-child]:!mb-0"
             />
           ) : (

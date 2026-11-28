@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
@@ -36,6 +37,13 @@ export default defineConfig(() => ({
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        // Rich agent replies for the mobile app's WebView.
+        agentReply: path.resolve(__dirname, 'embed/agent-reply.html'),
+      },
     },
   },
 }));

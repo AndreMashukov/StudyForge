@@ -224,6 +224,7 @@ export function buildPlannerPrompt(input: {
     '{"type":"response","response":"final user-facing reply"}',
     '{"type":"response","response":"one short sentence before the questions","questions":[{"id":"folder","header":"Folder","question":"Which folder should I use?","options":[{"label":"New folder inside /AWS","description":"Next to your AWS notes","recommended":true},{"label":"New folder at the top level","description":"Separate from your other folders"}]}]}',
     'Rules:',
+    '- The response string is JSON: escape every backslash and double quote inside it (write \\\\frac for \\frac in a formula, \\" for a quote in a plotly block or diagram label) and use \\n for line breaks.',
     '- Steps must be plain language, not tool JSON.',
     '- Each step should be achievable with the available tools in one focused pass.',
     '- Do not include steps that were already completed.',

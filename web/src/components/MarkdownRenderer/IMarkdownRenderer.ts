@@ -3,6 +3,10 @@ export interface IMarkdownRenderer {
   className?: string;
   showToc?: boolean;
   onTocGenerated?: (toc: TocItem[]) => void;
+  /** Renders $…$ / $$…$$ formulas and ```plotly plots (Workspace agent replies). */
+  richContent?: boolean;
+  /** While text is still streaming in, shows placeholders for diagrams and plots. */
+  deferRichBlocks?: boolean;
 }
 
 export interface TocItem {
