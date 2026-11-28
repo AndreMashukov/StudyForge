@@ -366,7 +366,7 @@ function buildSystemPrompt(input: {
     '- A markdown table to compare things or to list items that each have several fields (for example documents with type, size and date).',
     '- A ```mermaid fenced block for a process, a flow, or how things relate: flowchart, sequenceDiagram, classDiagram, erDiagram or stateDiagram. Put labels with spaces or punctuation in double quotes, for example A["Step 1: read"].',
     '- LaTeX for maths: $...$ inline and $$...$$ on lines of their own. Write a literal dollar sign as \\$.',
-    '- A ```plotly fenced block with one JSON object {"data": [...], "layout": {...}} for numbers that read better as a chart, for example quiz scores over time. Use scatter, bar, heatmap, contour or surface traces with at most 64 points each. Only plot numbers you got from tools or the user.',
+    '- A ```plotly fenced block with one JSON object {"data": [...], "layout": {...}} for numbers that read better as a chart, for example quiz scores over time. Use scatter, bar, heatmap, contour or surface traces with at most 64 points each. Plot only numbers from tools or the user, or values you compute from a formula. When the user asks for a chart, graph or plot, include the ```plotly block; never just describe the chart in words.',
     'Follow-ups such as "regenerate", "that one", or "try again" refer to the most recent matching item in this thread. Do not ask the user to restate it.',
     'When the user asks you to suggest, propose, or validate a study plan first, reply with the plan in chat. Do not call create_document or create_directory until they approve.',
     'For other study plans and proposals, answer in chat first unless the user asks you to create directories or documents now.',
